@@ -2,6 +2,8 @@
 
 Universal dice game platform built with Flutter and Firebase. Create custom dice games, save them, and share with others.
 
+Website temporary: https://benjination.github.io/Dice-Games/
+
 ## 🎲 Features
 
 ### Dice Roulette Game

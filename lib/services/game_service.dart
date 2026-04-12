@@ -12,6 +12,7 @@ class GameService {
   static final _auth = FirebaseAuth.instance;
 
   /// Saves a game privately for the current user
+  /// Private games are NOT filtered - users can write whatever they want
   static Future<String> saveGame({
     required String name,
     required String generalRules,
@@ -21,38 +22,14 @@ class GameService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    // Get profanity filter setting
-    final filterEnabled = await SettingsService.getProfanityFilterEnabled();
-
-    // Apply profanity filter to text content
-    final filteredName = ProfanityFilter.filter(name, enabled: filterEnabled);
-    final filteredRules = ProfanityFilter.filter(
-      generalRules,
-      enabled: filterEnabled,
-    );
-
-    // Filter face rules for each die
-    final filteredDiceConfigs = diceConfigs.map((config) {
-      final filteredFaceRules = config.faceRules?.map(
-        (face, rule) => MapEntry(
-          face,
-          ProfanityFilter.filter(rule, enabled: filterEnabled),
-        ),
-      );
-      return DiceConfig(
-        label: config.label,
-        sides: config.sides,
-        faceRules: filteredFaceRules,
-      );
-    }).toList();
-
+    // No profanity filter for private games - save as-is
     final docId = gameId ?? _firestore.collection('users').doc().id;
     
     final game = SavedGame(
       id: docId,
-      name: filteredName,
-      generalRules: filteredRules,
-      dice: filteredDiceConfigs,
+      name: name,
+      generalRules: generalRules,
+      dice: diceConfigs,
       isPublic: false,
       creatorUid: user.uid,
       createdAt: DateTime.now(),
@@ -71,6 +48,7 @@ class GameService {
   }
 
   /// Publishes a game (saves and submits for moderation)
+  /// Public games ARE filtered based on user's profanity filter setting
   static Future<String> publishGame({
     required String name,
     required String generalRules,

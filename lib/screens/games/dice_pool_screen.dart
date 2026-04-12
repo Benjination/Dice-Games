@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
@@ -32,8 +33,12 @@ class DicePoolScreen extends StatefulWidget {
 
 class _DicePoolScreenState extends State<DicePoolScreen> {
   late List<int?> _values;
+  late List<int?> _finalValues; // The target values during animation
+  late Set<int> _animatingDice; // Indices of dice currently animating
+  late Map<int, int> _highlightedDice; // Maps die index -> face value (persists until next roll)
   DiceBias _diceBias = DiceBias.fair;
   late Random _random;
+  Timer? _animationTimer;
   
   final _generalRulesController = TextEditingController();
   final Map<String, Map<int, TextEditingController>> _faceRulesControllers = {};
@@ -49,6 +54,9 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
     ]);
     _random = Random(seed);
     _values = List.filled(widget.configs.length, null);
+    _finalValues = List.filled(widget.configs.length, null);
+    _animatingDice = {};
+    _highlightedDice = {};
     
     // Initialize face rules controllers for each die and each face
     for (final config in widget.configs) {
@@ -63,6 +71,7 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
 
   @override
   void dispose() {
+    _animationTimer?.cancel();
     _generalRulesController.dispose();
     for (final dieControllers in _faceRulesControllers.values) {
       for (final controller in dieControllers.values) {
@@ -97,30 +106,107 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
     return _random.nextInt(sides) + 1;
   }
 
+  /// Animates a single die roll
   void _rollDie(int index) {
-    setState(() {
-      final updated = List<int?>.from(_values);
-      updated[index] = _computeRoll(widget.configs[index].sides);
-      _values = updated;
-    });
+    _animateDiceRoll([index]);
   }
 
+  /// Animates rolling all dice with cascade effect
   void _rollAll() {
+    _animateDiceRoll(List.generate(widget.configs.length, (i) => i));
+  }
+
+  /// Animates dice rolling with cascade effect
+  /// Dice lock into final values from left to right
+  void _animateDiceRoll(List<int> indices) {
+    _animationTimer?.cancel();
+
+    // Clear previous highlights at the start of a new roll
     setState(() {
-      _values = List.generate(
-        widget.configs.length,
-        (i) => _computeRoll(widget.configs[i].sides),
-      );
+      _highlightedDice.clear();
     });
+
+    // Compute final values for all dice
+    for (final index in indices) {
+      _finalValues[index] = _computeRoll(widget.configs[index].sides);
+      _animatingDice.add(index);
+    }
+
+    // Start rapid cycling animation (50ms updates)
+    _animationTimer = Timer.periodic(
+      const Duration(milliseconds: 50),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        setState(() {
+          // Update animating dice with random values for visual effect
+          for (final index in _animatingDice) {
+            _values[index] = _random.nextInt(min(6, widget.configs[index].sides)) + 1;
+          }
+        });
+      },
+    );
+
+    // Schedule cascade locking of dice
+    for (int i = 0; i < indices.length; i++) {
+      final dieIndex = indices[i];
+      // Cascade timing: 1.0s, 1.2s, 1.4s, 1.6s, 1.8s, 2.0s, etc.
+      final lockDelay = Duration(milliseconds: 1000 + (i * 200));
+      
+      Timer(lockDelay, () {
+        if (!mounted) return;
+        setState(() {
+          _values[dieIndex] = _finalValues[dieIndex];
+          _animatingDice.remove(dieIndex);
+          
+          // Highlight the corresponding rule (persists until next roll)
+          final lockedValue = _finalValues[dieIndex]!;
+          _highlightedDice[dieIndex] = lockedValue;
+          
+          // Stop animation timer when all dice have locked
+          if (_animatingDice.isEmpty) {
+            _animationTimer?.cancel();
+            _animationTimer = null;
+          }
+        });
+      });
+    }
   }
 
   void _reset() {
+    _animationTimer?.cancel();
     setState(() {
       _values = List.filled(widget.configs.length, null);
+      _finalValues = List.filled(widget.configs.length, null);
+      _animatingDice.clear();
+      _highlightedDice.clear();
     });
   }
 
   bool get _anyRolled => _values.any((v) => v != null);
+
+  /// Gets list of rolled rules for display
+  List<Map<String, String>> _getRolledRules() {
+    final rules = <Map<String, String>>[];
+    for (int i = 0; i < widget.configs.length; i++) {
+      final value = _values[i];
+      if (value != null) {
+        final config = widget.configs[i];
+        final ruleText = _faceRulesControllers[config.label]?[value]?.text.trim();
+        if (ruleText != null && ruleText.isNotEmpty) {
+          rules.add({
+            'label': config.label,
+            'face': value.toString(),
+            'rule': ruleText,
+          });
+        }
+      }
+    }
+    return rules;
+  }
 
   /// Shows dialog to save game privately
   Future<void> _showSaveDialog() async {
@@ -338,17 +424,27 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
                             _DieCard(
                               config: widget.configs[i],
                               value: _values[i],
+                              isAnimating: _animatingDice.contains(i),
                               onTap: () => _rollDie(i),
                             ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    // Roll results summary - only show when dice are rolled and not animating
+                    if (_anyRolled && _animatingDice.isEmpty)
+                      _RollResultsCard(rolledRules: _getRolledRules()),
                     const SizedBox(height: 32),
-                    // Rules section - centered with max width
-                    _RulesSection(
-                      configs: widget.configs,
+                    // General rules card - centered with max width
+                    _GeneralRulesCard(
                       generalRulesController: _generalRulesController,
+                    ),
+                    const SizedBox(height: 20),
+                    // Dice rules grid - wider container
+                    _DiceRulesGrid(
+                      configs: widget.configs,
                       faceRulesControllers: _faceRulesControllers,
+                      highlightedDice: _highlightedDice,
                     ),
                   ],
                 ),
@@ -374,11 +470,13 @@ class _DieCard extends StatelessWidget {
   const _DieCard({
     required this.config,
     required this.value,
+    required this.isAnimating,
     required this.onTap,
   });
 
   final DiceConfig config;
   final int? value;
+  final bool isAnimating;
   final VoidCallback onTap;
 
   /// Builds the dice image widget for the given [value].
@@ -431,9 +529,15 @@ class _DieCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasValue = value != null;
-    final borderColor = hasValue
+    
+    // Animating dice get a bright glowing border
+    final borderColor = isAnimating
         ? DarkAcademiaColors.antiqueBrass
-        : DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.25);
+        : hasValue
+            ? DarkAcademiaColors.antiqueBrass
+            : DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.25);
+    
+    final borderWidth = isAnimating ? 3.0 : hasValue ? 2.0 : 1.0;
 
     return GestureDetector(
       onTap: onTap,
@@ -446,19 +550,29 @@ class _DieCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: borderColor,
-            width: hasValue ? 2.0 : 1.0,
+            width: borderWidth,
           ),
-          boxShadow: hasValue
+          boxShadow: isAnimating
               ? [
                   BoxShadow(
                     color: DarkAcademiaColors.antiqueBrass.withValues(
-                      alpha: 0.25,
+                      alpha: 0.6,
                     ),
-                    blurRadius: 10,
-                    spreadRadius: 1,
+                    blurRadius: 20,
+                    spreadRadius: 3,
                   ),
                 ]
-              : null,
+              : hasValue
+                  ? [
+                      BoxShadow(
+                        color: DarkAcademiaColors.antiqueBrass.withValues(
+                          alpha: 0.25,
+                        ),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -517,6 +631,154 @@ class _DieCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Roll Results Card - Shows summary of all rolled face rules
+// ---------------------------------------------------------------------------
+
+class _RollResultsCard extends StatelessWidget {
+  const _RollResultsCard({
+    required this.rolledRules,
+  });
+
+  final List<Map<String, String>> rolledRules;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 600),
+      child: Card(
+        elevation: 8,
+        color: DarkAcademiaColors.charcoalGray,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.6),
+            width: 2,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                DarkAcademiaColors.charcoalGray,
+                DarkAcademiaColors.navyBlue.withValues(alpha: 0.3),
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      color: DarkAcademiaColors.antiqueBrass,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Roll Results',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: DarkAcademiaColors.antiqueBrass,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(
+                  color: DarkAcademiaColors.antiqueBrass,
+                  thickness: 1,
+                ),
+                const SizedBox(height: 12),
+                if (rolledRules.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Dice rules not set.',
+                      style: TextStyle(
+                        color: DarkAcademiaColors.cream.withValues(alpha: 0.6),
+                        fontSize: 15,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  )
+                else
+                  ...rolledRules.map(
+                  (rule) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: DarkAcademiaColors.antiqueBrass.withValues(
+                              alpha: 0.2,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: DarkAcademiaColors.antiqueBrass,
+                              width: 2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              rule['label']!,
+                              style: const TextStyle(
+                                color: DarkAcademiaColors.antiqueBrass,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Rolled ${rule['face']}',
+                                style: TextStyle(
+                                  color: DarkAcademiaColors.antiqueBrass
+                                      .withValues(alpha: 0.8),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                rule['rule']!,
+                                style: const TextStyle(
+                                  color: DarkAcademiaColors.cream,
+                                  fontSize: 15,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -666,84 +928,96 @@ class _BottomBar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Rules section widget
+// General rules card widget
 // ---------------------------------------------------------------------------
 
-class _RulesSection extends StatelessWidget {
-  const _RulesSection({
-    required this.configs,
+class _GeneralRulesCard extends StatelessWidget {
+  const _GeneralRulesCard({
     required this.generalRulesController,
-    required this.faceRulesControllers,
   });
 
-  final List<DiceConfig> configs;
   final TextEditingController generalRulesController;
-  final Map<String, Map<int, TextEditingController>> faceRulesControllers;
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 600),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // General rules card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.description,
-                        size: 20,
-                        color: DarkAcademiaColors.antiqueBrass,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Game Rules',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: DarkAcademiaColors.antiqueBrass,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.description,
+                    size: 20,
+                    color: DarkAcademiaColors.antiqueBrass,
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: generalRulesController,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe the rules of your game...',
-                      alignLabelWithHint: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                    minLines: 2,
-                    maxLength: 500,
+                  const SizedBox(width: 8),
+                  Text(
+                    'Game Rules',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: DarkAcademiaColors.antiqueBrass,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Per-die rules cards - 5 per row
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.start,
-            children: [
-              for (int i = 0; i < configs.length; i++)
-                SizedBox(
-                  width: (600 - 48) / 5, // (maxWidth - spacing) / 5
-                  child: _DieRulesPanel(
-                    config: configs[i],
-                    faceControllers: faceRulesControllers[configs[i].label]!,
-                  ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: generalRulesController,
+                decoration: const InputDecoration(
+                  hintText: 'Describe the rules of your game...',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
                 ),
+                maxLines: 3,
+                minLines: 2,
+                maxLength: 500,
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dice rules grid widget
+// ---------------------------------------------------------------------------
+
+class _DiceRulesGrid extends StatelessWidget {
+  const _DiceRulesGrid({
+    required this.configs,
+    required this.faceRulesControllers,
+    required this.highlightedDice,
+  });
+
+  final List<DiceConfig> configs;
+  final Map<String, Map<int, TextEditingController>> faceRulesControllers;
+  final Map<int, int> highlightedDice; // Maps die index -> face value
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 1200),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        alignment: WrapAlignment.center,
+        children: [
+          for (int i = 0; i < configs.length; i++)
+            SizedBox(
+              width: 180, // Wider cards for better readability
+              child: _DieRulesPanel(
+                config: configs[i],
+                faceControllers: faceRulesControllers[configs[i].label]!,
+                highlightedFace: highlightedDice[i],
+              ),
+            ),
         ],
       ),
     );
@@ -758,10 +1032,12 @@ class _DieRulesPanel extends StatefulWidget {
   const _DieRulesPanel({
     required this.config,
     required this.faceControllers,
+    this.highlightedFace,
   });
 
   final DiceConfig config;
   final Map<int, TextEditingController> faceControllers;
+  final int? highlightedFace; // The face value to highlight (if any)
 
   @override
   State<_DieRulesPanel> createState() => _DieRulesPanelState();
@@ -797,6 +1073,8 @@ class _DieRulesPanelState extends State<_DieRulesPanel> {
               final hasText = controller.text.trim().isNotEmpty;
               final isEditing = _editingFace == face;
 
+              final isHighlighted = widget.highlightedFace == face;
+              
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: isEditing
@@ -826,43 +1104,72 @@ class _DieRulesPanelState extends State<_DieRulesPanel> {
                           setState(() => _editingFace = null);
                         },
                       )
-                    : InkWell(
-                        onTap: () {
-                          setState(() => _editingFace = face);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 4,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$face - ',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: DarkAcademiaColors.antiqueBrass,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  hasText ? controller.text : 'No rule set',
+                    : AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        decoration: BoxDecoration(
+                          color: isHighlighted
+                              ? DarkAcademiaColors.antiqueBrass.withValues(
+                                  alpha: 0.25,
+                                )
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: isHighlighted
+                              ? [
+                                  BoxShadow(
+                                    color: DarkAcademiaColors.antiqueBrass
+                                        .withValues(alpha: 0.5),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() => _editingFace = face);
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 4,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$face - ',
                                   style: TextStyle(
-                                    color: hasText
-                                        ? DarkAcademiaColors.cream
-                                        : DarkAcademiaColors.cream.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                    fontStyle: hasText
-                                        ? FontStyle.normal
-                                        : FontStyle.italic,
+                                    fontWeight: FontWeight.w600,
+                                    color: isHighlighted
+                                        ? DarkAcademiaColors.antiqueBrass
+                                        : DarkAcademiaColors.antiqueBrass,
                                     fontSize: 13,
                                   ),
                                 ),
-                              ),
-                            ],
+                                Expanded(
+                                  child: Text(
+                                    hasText ? controller.text : 'No rule set',
+                                    style: TextStyle(
+                                      color: hasText
+                                          ? (isHighlighted
+                                              ? DarkAcademiaColors.cream
+                                              : DarkAcademiaColors.cream)
+                                          : DarkAcademiaColors.cream.withValues(
+                                              alpha: 0.4,
+                                            ),
+                                      fontStyle: hasText
+                                          ? FontStyle.normal
+                                          : FontStyle.italic,
+                                      fontSize: 13,
+                                      fontWeight: isHighlighted
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

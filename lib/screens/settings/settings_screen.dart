@@ -131,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   secondary: const Icon(Icons.filter_alt),
                   title: const Text('Profanity Filter'),
                   subtitle: const Text(
-                    'Replace inappropriate words with ****** in game names and rules',
+                    'Replace inappropriate words with ****** when publishing games. Private games are never filtered.',
                   ),
                   value: _profanityFilterEnabled,
                   onChanged: _toggleProfanityFilter,
