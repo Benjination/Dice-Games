@@ -29,8 +29,30 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>dice_games</title>
+  <title>Dice Games</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase Configuration -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics-compat.js"></script>
+  
+  <script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCNV6hfumW5u8ALY4yBXI4L32GngXWH2Jo",
+      authDomain: "dice-games-6a9ab.firebaseapp.com",
+      projectId: "dice-games-6a9ab",
+      storageBucket: "dice-games-6a9ab.firebasestorage.app",
+      messagingSenderId: "952432097302",
+      appId: "1:952432097302:web:bd252c374c60ca5e0e5d37",
+      measurementId: "G-N37QLR8XW6"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
 </head>
 <body>
   <!--
