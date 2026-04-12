@@ -2,10 +2,12 @@ import 'dart:math';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/dice_config.dart';
 import '../../theme/dark_academia_theme.dart';
 import '../../services/game_service.dart';
+import '../auth/login_screen.dart';
 
 /// Dice bias modes for rolling
 enum DiceBias {
@@ -188,6 +190,60 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
 
   bool get _anyRolled => _values.any((v) => v != null);
 
+  /// Checks if user is authenticated, prompts login if not
+  /// Returns true if authenticated (or after successful login)
+  Future<bool> _checkAuthenticationAndProceed() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      return true; // Already logged in
+    }
+
+    // Show dialog asking guest to log in
+    final shouldLogin = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign In Required'),
+        content: const Text(
+          'You need to be signed in to save or publish games. '
+          'Would you like to sign in now? Your current game configuration will be preserved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign In'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogin != true) {
+      return false; // User cancelled
+    }
+
+    // Navigate to login screen
+    if (!mounted) return false;
+    final loginResult = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen(),
+      ),
+    );
+
+    // Check if login was successful
+    if (loginResult == true && mounted) {
+      final newUser = FirebaseAuth.instance.currentUser;
+      if (newUser != null) {
+        _showSnackBar('Successfully signed in! You can now save your game.');
+        return true;
+      }
+    }
+
+    return false; // Login failed or was cancelled
+  }
+
   /// Gets list of rolled rules for display
   List<Map<String, String>> _getRolledRules() {
     final rules = <Map<String, String>>[];
@@ -210,6 +266,10 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
 
   /// Shows dialog to save game privately
   Future<void> _showSaveDialog() async {
+    // Check authentication first
+    final isAuthenticated = await _checkAuthenticationAndProceed();
+    if (!isAuthenticated || !mounted) return;
+
     final nameController = TextEditingController(text: widget.gameName);
     
     final result = await showDialog<bool>(
@@ -252,6 +312,10 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
 
   /// Shows dialog to publish game
   Future<void> _showPublishDialog() async {
+    // Check authentication first
+    final isAuthenticated = await _checkAuthenticationAndProceed();
+    if (!isAuthenticated || !mounted) return;
+
     final nameController = TextEditingController(text: widget.gameName);
     
     final result = await showDialog<bool>(
