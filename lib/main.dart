@@ -61,7 +61,8 @@ class DiceGamesApp extends StatelessWidget {
           }
 
           if (snapshot.hasData) {
-            return HomePage(firebaseReady: firebaseReady, user: snapshot.data);
+            // User is logged in - show game list (not guest mode)
+            return const GameListScreen(guest: false);
           }
 
           return const LandingPage();
