@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User's private games
+    match /users/{userId}/games/{gameId} {
+      // Users can only read/write their own games
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Pending games awaiting moderation
+    match /pendingGames/{gameId} {
+      // Anyone authenticated can submit a game for moderation
+      allow create: if request.auth != null;
+      
+      // Users can read their own pending games
+      allow read: if request.auth != null && 
+                     resource.data.creatorUid == request.auth.uid;
+      
+      // Only moderators can update/delete (add custom claims for this)
+      // allow update, delete: if request.auth.token.moderator == true;
+    }
+    
+    // Public approved games (to be implemented)
+    match /publicGames/{gameId} {
+      // Anyone can read public games
+      allow read: if true;
+      
+      // Only moderators can write (add custom claims for this)
+      // allow write: if request.auth != null && 
+      //                 request.auth.token.moderator == true;
+    }
+  }
+}

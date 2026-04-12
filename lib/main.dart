@@ -3,8 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
+import 'theme/dark_academia_theme.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/landing_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,19 +40,48 @@ class DiceGamesApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DiceGames',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF116466)),
-        useMaterial3: true,
-      ),
-      home: HomePage(firebaseReady: firebaseReady),
+      theme: DarkAcademiaTheme.buildTheme(),
+      home: _buildHome(),
     );
+  }
+
+  Widget _buildHome() {
+    try {
+      return StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Scaffold(
+              backgroundColor:
+                  DarkAcademiaTheme.buildTheme().scaffoldBackgroundColor,
+              body: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          if (snapshot.hasData) {
+            return HomePage(firebaseReady: firebaseReady, user: snapshot.data);
+          }
+
+          return const LandingPage();
+        },
+      );
+    } catch (_) {
+      return const LandingPage();
+    }
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.firebaseReady});
+  const HomePage({
+    super.key,
+    required this.firebaseReady,
+    this.user,
+  });
 
   final bool firebaseReady;
+  final User? user;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -80,11 +113,57 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final total = _lastRoll.fold<int>(0, (sum, value) => sum + value);
+    final isSignedIn = widget.user != null;
+
+    Future<void> openLoginScreen() async {
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('DiceGames Universal'),
+        title: const Text('DiceGames'),
+        actions: [
+          if (isSignedIn)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () async {
+                    final shouldSignOut = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Sign Out'),
+                        content: const Text(
+                          'Are you sure you want to sign out?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Sign Out'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (shouldSignOut == true) {
+                      await FirebaseAuth.instance.signOut();
+                    }
+                  },
+                  child: const Chip(
+                    label: Text('Sign Out'),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -163,11 +242,12 @@ class _HomePageState extends State<HomePage> {
                         icon: const Icon(Icons.casino),
                         label: const Text('Play Built-in Games (Guest)'),
                       ),
-                      FilledButton.tonalIcon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.person),
-                        label: const Text('Sign In to Save Games'),
-                      ),
+                      if (!isSignedIn)
+                        FilledButton.tonalIcon(
+                          onPressed: openLoginScreen,
+                          icon: const Icon(Icons.person),
+                          label: const Text('Sign In to Save Games'),
+                        ),
                     ],
                   ),
                 ],

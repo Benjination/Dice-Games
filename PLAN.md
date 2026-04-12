@@ -136,8 +136,14 @@ We will update this file as the source of truth at each milestone.
   - Initial home screen implemented with configurable dice roller
   - Guest and sign-in entry points added as placeholders
   - Firebase SDK packages added and web config integrated
-  - Baseline static analysis and tests passing
+  - Dark Academia color theme created and applied system-wide
+  - Login and sign-up screens implemented with Firebase Auth integration
+  - Auth-aware routing with StreamBuilder for real-time state management
+  - User sign-out functionality with confirmation dialog
+  - Asset folder structure created and configured
+  - All static analysis and tests passing
 - Next
-  - Connect Firebase (after you create project config)
+  - Connect Firebase on native platforms via flutterfire configure
   - Add built-in games list and first playable game screen
-  - Add auth screens and route guards for account-only features
+  - Implement saved games persistence in Firestore
+  - Add custom game builder and rules editor
