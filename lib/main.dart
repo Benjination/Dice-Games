@@ -25,6 +25,19 @@ Future<bool> _initializeFirebase() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       await FirebaseAnalytics.instanceFor(app: app).logAppOpen();
+      
+      // Check for redirect result from Google sign-in
+      try {
+        final result = await FirebaseAuth.instance.getRedirectResult();
+        if (result.user != null) {
+          // User successfully signed in via redirect
+          await UserService.ensureUserDocument(result.user!);
+        }
+      } catch (e) {
+        // No redirect or error - that's fine, continue normally
+        print('Redirect result check: $e');
+      }
+      
       return true;
     }
     return false;
