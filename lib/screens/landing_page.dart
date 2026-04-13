@@ -4,6 +4,7 @@ import '../../theme/dark_academia_theme.dart';
 import './auth/login_screen.dart';
 import './games/dice_pool_config_screen.dart';
 import './games/my_games_screen.dart';
+import './games/browse_public_games_screen.dart';
 import './settings/settings_screen.dart';
 
 class LandingPage extends StatelessWidget {
@@ -294,6 +295,17 @@ class GameListScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
+                    builder: (_) => const BrowsePublicGamesScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.public),
+              tooltip: 'Community Games',
+            ),
+            IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
                     builder: (_) => const SettingsScreen(),
                   ),
                 );
@@ -329,6 +341,32 @@ class GameListScreen extends StatelessWidget {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const MyGamesScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                color: DarkAcademiaColors.deepForestGreen.withValues(alpha: 0.15),
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.public,
+                    color: DarkAcademiaColors.antiqueBrass,
+                  ),
+                  title: const Text(
+                    'Community Games',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: DarkAcademiaColors.antiqueBrass,
+                    ),
+                  ),
+                  subtitle: const Text('Browse and save public games from other players'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BrowsePublicGamesScreen(),
                       ),
                     );
                   },

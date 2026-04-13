@@ -174,4 +174,61 @@ class GameService {
         .doc(gameId)
         .delete();
   }
+
+  /// Loads all approved public games from the community
+  static Future<List<SavedGame>> loadPublicGames({int limit = 50}) async {
+    final snapshot = await _firestore
+        .collection('publicGames')
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => SavedGame.fromJson(doc.data()))
+        .toList();
+  }
+
+  /// Copies a public game to the current user's library
+  /// Creates a new instance so the user has their own copy
+  static Future<String> copyPublicGameToLibrary(SavedGame game) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    // Check if user already has a game with this name
+    final existing = await findGameByName(game.name);
+    String gameName = game.name;
+    
+    // If name exists, append " (Copy)" or " (Copy N)"
+    if (existing != null) {
+      int copyNumber = 1;
+      while (await findGameByName('$gameName (Copy${copyNumber > 1 ? ' $copyNumber' : ''})') != null) {
+        copyNumber++;
+      }
+      gameName = '$gameName (Copy${copyNumber > 1 ? ' $copyNumber' : ''})';
+    }
+
+    // Create a new document ID for this user's copy
+    final newDocId = _firestore.collection('users').doc().id;
+    
+    final copiedGame = SavedGame(
+      id: newDocId,
+      name: gameName,
+      generalRules: game.generalRules,
+      dice: game.dice,
+      isPublic: false, // User's copy is private by default
+      creatorUid: user.uid,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    // Save to user's private games collection
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('games')
+        .doc(newDocId)
+        .set(copiedGame.toJson());
+
+    return newDocId;
+  }
 }

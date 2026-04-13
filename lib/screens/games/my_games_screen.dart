@@ -6,6 +6,16 @@ import '../../services/game_service.dart';
 import '../../theme/dark_academia_theme.dart';
 import 'dice_pool_screen.dart';
 
+/// Filter options for game visibility
+enum GameFilter {
+  all('All Games'),
+  public('Public Games'),
+  private('Private Games');
+
+  const GameFilter(this.label);
+  final String label;
+}
+
 /// Screen showing user's saved games
 class MyGamesScreen extends StatefulWidget {
   const MyGamesScreen({super.key});
@@ -18,6 +28,7 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
   List<SavedGame>? _games;
   bool _isLoading = true;
   String? _error;
+  GameFilter _currentFilter = GameFilter.all;
 
   @override
   void initState() {
@@ -46,6 +57,20 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// Filters games based on the current filter selection
+  List<SavedGame> get _filteredGames {
+    if (_games == null) return [];
+    
+    switch (_currentFilter) {
+      case GameFilter.all:
+        return _games!;
+      case GameFilter.public:
+        return _games!.where((game) => game.isPublic).toList();
+      case GameFilter.private:
+        return _games!.where((game) => !game.isPublic).toList();
     }
   }
 
@@ -145,15 +170,56 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                     ],
                   ),
                 )
-              : _games == null || _games!.isEmpty
-                  ? const Center(
-                      child: Text('No saved games yet'),
-                    )
-                  : ListView.builder(
+              : Column(
+                  children: [
+                    // Filter buttons
+                    Container(
                       padding: const EdgeInsets.all(16),
-                      itemCount: _games!.length,
-                      itemBuilder: (context, index) {
-                        final game = _games![index];
+                      child: SegmentedButton<GameFilter>(
+                        segments: GameFilter.values
+                            .map(
+                              (filter) => ButtonSegment<GameFilter>(
+                                value: filter,
+                                label: Text(filter.label),
+                                icon: Icon(
+                                  filter == GameFilter.all
+                                      ? Icons.all_inclusive
+                                      : filter == GameFilter.public
+                                          ? Icons.public
+                                          : Icons.lock,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        selected: {_currentFilter},
+                        onSelectionChanged: (Set<GameFilter> selected) {
+                          setState(() {
+                            _currentFilter = selected.first;
+                          });
+                        },
+                      ),
+                    ),
+                    // Games list
+                    Expanded(
+                      child: _filteredGames.isEmpty
+                          ? Center(
+                              child: Text(
+                                _currentFilter == GameFilter.public
+                                    ? 'No public games yet'
+                                    : _currentFilter == GameFilter.private
+                                        ? 'No private games yet'
+                                        : 'No saved games yet',
+                                style: TextStyle(
+                                  color: DarkAcademiaColors.cream.withValues(alpha: 0.6),
+                                  fontSize: 16,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _filteredGames.length,
+                              itemBuilder: (context, index) {
+                                final game = _filteredGames[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           child: ListTile(
@@ -207,6 +273,9 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                         );
                       },
                     ),
+                    ),
+                  ],
+                ),
     );
   }
 
