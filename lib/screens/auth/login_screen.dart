@@ -77,13 +77,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       if (kIsWeb) {
-        final credential = await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+        // Use redirect instead of popup to avoid COOP issues
+        final provider = GoogleAuthProvider();
+        final credential = await FirebaseAuth.instance.signInWithRedirect(provider);
         
-        // Ensure user has a username in Firestore
-        final user = credential.user;
-        if (user != null) {
-          await UserService.ensureUserDocument(user);
-        }
+        // Note: signInWithRedirect doesn't return immediately on web
+        // The page will reload and auth state will be updated automatically
       } else {
         setState(() {
           _isLoading = false;
@@ -93,7 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
       }
-      if (mounted) Navigator.of(context).pop(true);
     } on FirebaseAuthException catch (e) {
       setState(() => _errorMessage = e.message ?? 'Google sign-in failed.');
     } catch (e) {
@@ -267,6 +265,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
+    // Validate email format
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() {
+        _errorMessage = 'Please enter a valid email address.';
+      });
+      return;
+    }
+
+    // Validate password length (Firebase requires 6+ characters)
+    if (_passwordController.text.length < 6) {
+      setState(() {
+        _errorMessage = 'Password must be at least 6 characters long.';
+      });
+      return;
+    }
+
+    // Validate password match
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
         _errorMessage = 'Passwords do not match.';
@@ -282,7 +298,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       // Create the user account
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
+        email: email,
         password: _passwordController.text,
       );
 
@@ -296,12 +312,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
         Navigator.of(context).pop(true);
       }
     } on FirebaseAuthException catch (e) {
+      String errorMsg;
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMsg = 'This email is already registered. Please sign in instead.';
+          break;
+        case 'invalid-email':
+          errorMsg = 'Invalid email format.';
+          break;
+        case 'weak-password':
+          errorMsg = 'Password is too weak. Use at least 6 characters.';
+          break;
+        case 'operation-not-allowed':
+          errorMsg = 'Email sign-up is currently disabled. Please contact support.';
+          break;
+        default:
+          errorMsg = e.message ?? 'Sign up failed. Please try again.';
+      }
       setState(() {
-        _errorMessage = e.message ?? 'Sign up failed. Please try again.';
+        _errorMessage = errorMsg;
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'An unexpected error occurred.';
+        _errorMessage = 'An unexpected error occurred: $e';
       });
     } finally {
       if (mounted) {
@@ -387,6 +420,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       labelText: 'Password',
                       hintText: 'Create a password',
                       prefixIcon: Icon(Icons.lock),
+                      helperText: 'Must be at least 6 characters',
                     ),
                     obscureText: true,
                   ),
