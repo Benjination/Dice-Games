@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/dark_academia_theme.dart';
 import '../../services/user_service.dart';
+import '../../services/friends_service.dart';
 import './auth/login_screen.dart';
 import './games/dice_pool_config_screen.dart';
 import './games/my_games_screen.dart';
 import './games/browse_public_games_screen.dart';
 import './moderator/moderator_screen.dart';
 import './settings/settings_screen.dart';
+import './social/friends_screen.dart';
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -282,12 +284,14 @@ class GameListScreen extends StatefulWidget {
 class _GameListScreenState extends State<GameListScreen> {
   bool _isModerator = false;
   bool _isCheckingModerator = true;
+  int _pendingRequestCount = 0;
 
   @override
   void initState() {
     super.initState();
     if (!widget.guest) {
       _checkModeratorStatus();
+      _loadPendingCount();
     } else {
       _isCheckingModerator = false;
     }
@@ -312,6 +316,15 @@ class _GameListScreenState extends State<GameListScreen> {
     }
   }
 
+  Future<void> _loadPendingCount() async {
+    final count = await FriendsService.getPendingRequestCount();
+    if (mounted) {
+      setState(() {
+        _pendingRequestCount = count;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -329,6 +342,23 @@ class _GameListScreenState extends State<GameListScreen> {
               },
               icon: const Icon(Icons.bookmark),
               tooltip: 'My Games',
+            ),
+            IconButton(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const FriendsScreen(),
+                  ),
+                );
+                // Reload count when returning from Friends screen
+                _loadPendingCount();
+              },
+              icon: Badge(
+                isLabelVisible: _pendingRequestCount > 0,
+                label: Text('$_pendingRequestCount'),
+                child: const Icon(Icons.people),
+              ),
+              tooltip: 'Friends',
             ),
             IconButton(
               onPressed: () {
