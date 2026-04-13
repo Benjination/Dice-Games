@@ -1,13 +1,15 @@
 {
-    "name": "dice_games",
-    "short_name": "dice_games",
-    "start_url": ".",
+    "name": "DiceGames - Roll with Purpose",
+    "short_name": "DiceGames",
+    "start_url": "/Dice-Games/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1a2332",
+    "theme_color": "#1a2332",
+    "description": "Universal dice game platform. Create custom dice games, save them, and share with others. Play Dice Roulette with customizable rules.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["games", "entertainment"],
+    "scope": "/Dice-Games/",
     "icons": [
         {
             "src": "icons/Icon-192.png",
