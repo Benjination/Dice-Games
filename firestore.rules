@@ -2,6 +2,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // User profile documents
+    match /users/{userId} {
+      // Users can read any user's profile (for friend search, etc.)
+      allow read: if request.auth != null;
+      
+      // Users can only create/update their own profile
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // User's friends subcollection
+      match /friends/{friendId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Friend requests
+    match /friend_requests/{requestId} {
+      // Users can read requests they sent or received
+      allow read: if request.auth != null && 
+                     (resource.data.fromUid == request.auth.uid || 
+                      resource.data.toUid == request.auth.uid);
+      
+      // Users can create requests they're sending
+      allow create: if request.auth != null && 
+                       request.resource.data.fromUid == request.auth.uid;
+      
+      // Users can update requests sent to them (accept/reject)
+      allow update: if request.auth != null && 
+                       resource.data.toUid == request.auth.uid;
+      
+      // Users can delete their own sent requests
+      allow delete: if request.auth != null && 
+                       resource.data.fromUid == request.auth.uid;
+    }
+    
     // User's private games
     match /users/{userId}/games/{gameId} {
       // Users can only read/write their own games

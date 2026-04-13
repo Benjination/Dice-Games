@@ -199,9 +199,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const _AuthDivider(label: 'or continue with'),
                   const SizedBox(height: 20),
                   _SocialSignInButton(
-                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    onPressed: null, // Temporarily disabled to avoid popup issues
                     icon: const _GoogleIcon(),
-                    label: 'Continue with Google',
+                    label: 'Continue with Google (Coming Soon)',
                   ),
                   const SizedBox(height: 12),
                   _SocialSignInButton(
@@ -329,13 +329,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         default:
           errorMsg = e.message ?? 'Sign up failed. Please try again.';
       }
-      setState(() {
-        _errorMessage = errorMsg;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = errorMsg;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'An unexpected error occurred: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred. Please try again.\n\nDetails: ${e.toString()}';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {

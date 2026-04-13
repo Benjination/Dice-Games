@@ -34,40 +34,46 @@ class UserService {
   /// Creates or updates a user document in Firestore with a unique username
   /// This should be called after any authentication (sign up, sign in, etc.)
   static Future<void> ensureUserDocument(User user) async {
-    final userDoc = _firestore.collection('users').doc(user.uid);
-    final docSnapshot = await userDoc.get();
+    try {
+      final userDoc = _firestore.collection('users').doc(user.uid);
+      final docSnapshot = await userDoc.get();
 
-    if (!docSnapshot.exists) {
-      // New user - create document with unique username (unlocked for customization)
-      final username = await _generateUniqueUsername();
-      await userDoc.set({
-        'username': username,
-        'usernameLocked': false, // Allow user to regenerate initially
-        'email': user.email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      // Existing user - check if username exists and is valid
-      final data = docSnapshot.data();
-      if (data?['username'] == null || 
-          (data!['username'] as String).isEmpty ||
-          !UsernameGenerator.isValidFormat(data['username'] as String)) {
-        // Generate new unique username if missing or invalid (unlocked)
+      if (!docSnapshot.exists) {
+        // New user - create document with unique username (unlocked for customization)
         final username = await _generateUniqueUsername();
-        await userDoc.update({
+        await userDoc.set({
           'username': username,
-          'usernameLocked': false,
+          'usernameLocked': false, // Allow user to regenerate initially
+          'email': user.email,
+          'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+      } else {
+        // Existing user - check if username exists and is valid
+        final data = docSnapshot.data();
+        if (data?['username'] == null || 
+            (data!['username'] as String).isEmpty ||
+            !UsernameGenerator.isValidFormat(data['username'] as String)) {
+          // Generate new unique username if missing or invalid (unlocked)
+          final username = await _generateUniqueUsername();
+          await userDoc.update({
+            'username': username,
+            'usernameLocked': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+        
+        // Add usernameLocked field if it doesn't exist (for existing users)
+        if (data != null && !data.containsKey('usernameLocked')) {
+          await userDoc.update({
+            'usernameLocked': true, // Existing users keep their usernames
+          });
+        }
       }
-      
-      // Add usernameLocked field if it doesn't exist (for existing users)
-      if (data != null && !data.containsKey('usernameLocked')) {
-        await userDoc.update({
-          'usernameLocked': true, // Existing users keep their usernames
-        });
-      }
+    } catch (e) {
+      // Log error but don't throw - authentication succeeded even if Firestore fails
+      print('Error creating user document: $e');
+      rethrow; // Re-throw to let caller handle it
     }
   }
 
