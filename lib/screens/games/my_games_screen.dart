@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/saved_game.dart';
 import '../../services/game_service.dart';
+import '../../services/friends_service.dart';
 import '../../theme/dark_academia_theme.dart';
 import 'dice_pool_screen.dart';
 
@@ -126,6 +127,89 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _shareGame(SavedGame game) async {
+    if (game.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot share unsaved game')),
+      );
+      return;
+    }
+
+    // Only the creator can share a game
+    final user = FirebaseAuth.instance.currentUser;
+    if (game.creatorUid != user?.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only the creator can share this game')),
+      );
+      return;
+    }
+
+    // Get list of friends
+    try {
+      final friends = await FriendsService.getFriends();
+      if (!mounted) return;
+
+      if (friends.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No friends to share with')),
+        );
+        return;
+      }
+
+      // Show friend selection dialog
+      String? selectedFriendUid;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Share Game'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              itemCount: friends.length,
+              itemBuilder: (context, index) {
+                final friend = friends[index];
+                return ListTile(
+                  title: Text(friend['username'] ?? 'Unknown'),
+                  onTap: () {
+                    selectedFriendUid = friend['uid'];
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+
+      if (selectedFriendUid != null) {
+        try {
+          await GameService.shareGameWithFriend(game.id!, selectedFriendUid!);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Game shared successfully!')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error sharing game: $e')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading friends: $e')),
+      );
+    }
   }
 
   @override
@@ -253,19 +337,37 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                                       fontSize: 12,
                                     ),
                                   ),
+                                if (game.isShared)
+                                  Text(
+                                    'Shared by friend • Cannot edit/publish',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 12,
+                                    ),
+                                  ),
                               ],
                             ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) {
                                 if (value == 'delete') {
                                   _deleteGame(game);
+                                } else if (value == 'share') {
+                                  _shareGame(game);
                                 }
                               },
                               itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
+                                // Only show share option for games created by current user
+                                if (game.creatorUid == FirebaseAuth.instance.currentUser?.uid)
+                                  const PopupMenuItem(
+                                    value: 'share',
+                                    child: Text('Share with Friend'),
+                                  ),
+                                // Only allow delete for created games, not shared games
+                                if (game.creatorUid == FirebaseAuth.instance.currentUser?.uid)
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Delete'),
+                                  ),
                               ],
                             ),
                             onTap: () => _playGame(game),

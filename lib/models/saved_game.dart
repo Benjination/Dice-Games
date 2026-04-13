@@ -8,6 +8,7 @@ class SavedGame {
   final List<DiceConfig> dice;
   final bool isPublic; // Public games visible to all; private only to creator
   final String? creatorUid; // Firebase Auth user ID
+  final String? sharedBy; // UID of user who shared this game (if applicable)
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -18,9 +19,13 @@ class SavedGame {
     required this.dice,
     this.isPublic = false,
     this.creatorUid,
+    this.sharedBy,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Returns true if this is a shared game (received from a friend)
+  bool get isShared => sharedBy != null;
 
   SavedGame copyWith({
     String? id,
@@ -29,6 +34,7 @@ class SavedGame {
     List<DiceConfig>? dice,
     bool? isPublic,
     String? creatorUid,
+    String? sharedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -39,6 +45,7 @@ class SavedGame {
       dice: dice ?? this.dice,
       isPublic: isPublic ?? this.isPublic,
       creatorUid: creatorUid ?? this.creatorUid,
+      sharedBy: sharedBy ?? this.sharedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -52,6 +59,7 @@ class SavedGame {
       'dice': dice.map((d) => d.toJson()).toList(),
       'isPublic': isPublic,
       if (creatorUid != null) 'creatorUid': creatorUid,
+      if (sharedBy != null) 'sharedBy': sharedBy,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -67,6 +75,7 @@ class SavedGame {
           .toList(),
       isPublic: json['isPublic'] as bool? ?? false,
       creatorUid: json['creatorUid'] as String?,
+      sharedBy: json['sharedBy'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
