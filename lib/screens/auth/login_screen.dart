@@ -7,8 +7,9 @@ import '../../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final int? pendingFarkleScore;
+  final int? pendingPigScore;
   
-  const LoginScreen({super.key, this.pendingFarkleScore});
+  const LoginScreen({super.key, this.pendingFarkleScore, this.pendingPigScore});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -69,6 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
       MaterialPageRoute(
         builder: (context) => SignUpScreen(
           pendingFarkleScore: widget.pendingFarkleScore,
+          pendingPigScore: widget.pendingPigScore,
         ),
       ),
     );
@@ -268,8 +270,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class SignUpScreen extends StatefulWidget {
   final int? pendingFarkleScore;
+  final int? pendingPigScore;
   
-  const SignUpScreen({super.key, this.pendingFarkleScore});
+  const SignUpScreen({super.key, this.pendingFarkleScore, this.pendingPigScore});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();

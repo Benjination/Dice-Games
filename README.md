@@ -6,6 +6,12 @@ Website temporary: https://benjination.github.io/Dice-Games/
 
 ## 🎲 Features
 
+### Dice Games
+
+- **Dice Roulette**: Configurable dice game with custom labels and bias modes
+- **Farkle**: Push-your-luck dice game with scoring combinations and global leaderboard
+- **Pig Dice**: Classic single-die push-your-luck game with global leaderboard
+
 ### Dice Roulette Game
 - **Configurable dice**: 1-10 dice, each with customizable labels (A-Z) and sides (d4, d6, d8, d10, d12, d20)
 - **Bias modes**: 
@@ -14,6 +20,24 @@ Website temporary: https://benjination.github.io/Dice-Games/
   - Nice Dice (biased toward low values)
 - **Dynamic rules**: Add general rules and per-face rules during gameplay
 - **Individual or batch rolling**: Tap individual dice or roll all at once
+
+### Farkle
+- **Single-player mode** with global leaderboard (top 15)
+- **Cascading dice animations** with realistic roll effects
+- **Complete scoring system**: All standard Farkle combinations
+- **Hot dice** (all 6 dice score) for bonus rolls
+- **Turn limit**: 20 turns to reach 10,000 points
+- **Guest play**: Play without login, save score by signing up
+- **Smart dice selection**: Only active dice can be selected after rolling
+
+### Pig Dice
+- **Single-player mode** with global leaderboard (top 15)
+- **Simple rules**: Roll the die, accumulate points, or hold to bank
+- **Pig out**: Roll a 1 and lose your turn's score
+- **First to 100 points wins**
+- **Turn limit**: 20 turns maximum
+- **Guest play**: Play without login, save score by signing up
+- **Smooth dice animation**: Realistic rolling effect
 
 ### User Features
 - **Firebase Authentication**: Email/password, Google sign-in, Phone (SMS)
