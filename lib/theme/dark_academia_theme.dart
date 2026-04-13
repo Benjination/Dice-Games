@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Dark Academia color palette for DiceGames
+/// Dark Academia color palette for Roll Tavern
 class DarkAcademiaColors {
   // Primary walls and backgrounds
   static const Color deepForestGreen = Color(0xFF1B4D3E);

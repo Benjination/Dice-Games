@@ -23,7 +23,7 @@ class LandingPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DiceGames'),
+        title: const Text('Roll Tavern'),
         elevation: 0,
         actions: [
           Padding(

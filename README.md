@@ -1,16 +1,17 @@
-# DiceGames
+# Roll Tavern
 
-Universal dice game platform built with Flutter and Firebase. Create custom dice games, save them, and share with others.
+A cozy collection of classic dice games built with Flutter and Firebase. Play Farkle, Pig Dice, and Dice Poker with friends.
 
-Website temporary: https://benjination.github.io/Dice-Games/
+Website: https://roll-tavern.com
 
 ## 🎲 Features
 
-### Dice Games
+### Games
 
 - **Dice Roulette**: Configurable dice game with custom labels and bias modes
 - **Farkle**: Push-your-luck dice game with scoring combinations and global leaderboard
 - **Pig Dice**: Classic single-die push-your-luck game with global leaderboard
+- **Dice Poker**: Five dice poker with 5 rounds and strategic re-rolls
 
 ### Dice Roulette Game
 - **Configurable dice**: 1-10 dice, each with customizable labels (A-Z) and sides (d4, d6, d8, d10, d12, d20)
@@ -80,7 +81,7 @@ Website temporary: https://benjination.github.io/Dice-Games/
 
 ### 📱 Install on Your Phone
 
-DiceGames works as a Progressive Web App (PWA) - install it on your phone for a native app experience!
+Roll Tavern works as a Progressive Web App (PWA) - install it on your phone for a native app experience!
 
 **See: [PWA_INSTALL.md](PWA_INSTALL.md) for detailed installation instructions**
 
@@ -91,8 +92,8 @@ Quick install:
 ### Local Development
 ```bash
 # Clone the repository
-git clone https://github.com/[username]/DiceGames.git
-cd DiceGames
+git clone https://github.com/[username]/Roll-Tavern.git
+cd Roll-Tavern
 
 # Install dependencies
 flutter pub get

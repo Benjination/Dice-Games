@@ -1,6 +1,6 @@
-# Installing DiceGames on Your Phone
+# Installing Roll Tavern on Your Phone
 
-DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone for a native app experience! No App Store needed.
+Roll Tavern is a **Progressive Web App (PWA)** that can be installed on your phone for a native app experience! No App Store needed.
 
 ## ✨ Benefits
 
@@ -21,7 +21,7 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
 
 ### Steps
 
-1. **Open DiceGames in Safari**
+1. **Open Roll Tavern in Safari**
    - Navigate to: https://benjination.github.io/Dice-Games/
 
 2. **Tap the Share button**
@@ -37,7 +37,7 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
    - Tap "Add" in the top right corner
 
 5. **Done!**
-   - The DiceGames icon will appear on your home screen
+   - The Roll Tavern icon will appear on your home screen
    - Tap it to launch the app
 
 ### Troubleshooting iOS
@@ -55,11 +55,11 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
 
 ### Method 1: Browser Prompt (Easiest)
 
-1. **Open DiceGames in Chrome**
+1. **Open Roll Tavern in Chrome**
    - Navigate to: https://benjination.github.io/Dice-Games/
 
 2. **Look for the install prompt**
-   - A banner should appear saying "Add DiceGames to Home screen"
+   - A banner should appear saying "Add Roll Tavern to Home screen"
    - Tap "Install" or "Add"
 
 3. **Done!**
@@ -67,7 +67,7 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
 
 ### Method 2: Manual Installation
 
-1. **Open DiceGames in Chrome**
+1. **Open Roll Tavern in Chrome**
    - Navigate to: https://benjination.github.io/Dice-Games/
 
 2. **Open browser menu**
@@ -80,7 +80,7 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
    - Tap "Add" or "Install"
 
 5. **Done!**
-   - The DiceGames icon will appear on your home screen
+   - The Roll Tavern icon will appear on your home screen
 
 ### Troubleshooting Android
 - **Don't see install option?** Make sure you're using Chrome, Edge, or Samsung Internet
@@ -93,12 +93,12 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
 
 ### Chrome/Edge on Desktop
 
-1. **Open DiceGames in Chrome or Edge**
+1. **Open Roll Tavern in Chrome or Edge**
    - Navigate to: https://benjination.github.io/Dice-Games/
 
 2. **Look for the install icon**
    - You'll see a ⊕ or install icon in the address bar
-   - Or click the three dots menu → "Install DiceGames"
+   - Or click the three dots menu → "Install Roll Tavern"
 
 3. **Click Install**
    - Confirm the installation
@@ -111,7 +111,7 @@ DiceGames is a **Progressive Web App (PWA)** that can be installed on your phone
 
 ## 🎮 Using the Installed App
 
-Once installed, DiceGames will:
+Once installed, Roll Tavern will:
 - ✅ Launch in full-screen mode without browser chrome
 - ✅ Appear in your app drawer/launcher
 - ✅ Work offline for games you've already loaded
@@ -136,16 +136,16 @@ You can also force an update by:
 ## 🗑️ Uninstalling the App
 
 ### iOS
-1. Long-press the DiceGames icon on your home screen
+1. Long-press the Roll Tavern icon on your home screen
 2. Tap "Remove App" → "Delete App"
 
 ### Android
-1. Long-press the DiceGames icon
+1. Long-press the Roll Tavern icon
 2. Drag to "Uninstall" or tap app info → "Uninstall"
 
 ### Desktop
 1. Right-click the app icon
-2. Select "Uninstall DiceGames"
+2. Select "Uninstall Roll Tavern"
 
 ---
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dice_games/main.dart';
+import 'package:roll_tavern/main.dart';
 
 void main() {
   testWidgets('App renders login screen by default', (WidgetTester tester) async {

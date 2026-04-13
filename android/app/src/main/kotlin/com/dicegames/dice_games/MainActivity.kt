@@ -1,4 +1,4 @@
-package com.dicegames.dice_games
+package com.rolltavern.roll_tavern
 
 import io.flutter.embedding.android.FlutterActivity
 

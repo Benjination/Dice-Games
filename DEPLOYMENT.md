@@ -1,4 +1,4 @@
-# Deployment Guide for DiceGames
+# Deployment Guide for Roll Tavern
 
 ## Prerequisites
 - GitHub account
@@ -75,7 +75,7 @@ jobs:
         run: flutter pub get
       
       - name: Build web
-        run: flutter build web --release --base-href "/DiceGames/"
+        run: flutter build web --release --base-href "/Roll Tavern/"
       
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
@@ -97,10 +97,10 @@ git commit -m "Add deployment workflow"
 git push origin main
 ```
 
-Your app will be live at: `https://[username].github.io/DiceGames/`
+Your app will be live at: `https://[username].github.io/Roll Tavern/`
 
 ### Important Notes for GitHub Pages:
-- Update `web/index.html` base href to `/DiceGames/`
+- Update `web/index.html` base href to `/Roll Tavern/`
 - Firebase auth redirect URLs need to include your GitHub Pages domain
 - Update Firebase Console → Authentication → Authorized domains
 
