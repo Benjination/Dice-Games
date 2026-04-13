@@ -105,14 +105,14 @@ class FriendsService {
     if (currentUser == null) return [];
 
     try {
+      // Simplified query without orderBy to avoid composite index requirement
       final snapshot = await _firestore
           .collection('friend_requests')
           .where('toUid', isEqualTo: currentUser.uid)
           .where('status', isEqualTo: 'pending')
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final requests = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
           'requestId': doc.id,
@@ -121,6 +121,16 @@ class FriendsService {
           'createdAt': data['createdAt'],
         };
       }).toList();
+      
+      // Sort by createdAt on the client side
+      requests.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime); // Descending order
+      });
+      
+      return requests;
     } catch (e) {
       return [];
     }
@@ -303,14 +313,15 @@ class FriendsService {
       return Stream.value([]);
     }
 
+    // Simplified query to avoid composite index requirement
+    // Filter by toUid and status, sort client-side
     return _firestore
         .collection('friend_requests')
         .where('toUid', isEqualTo: currentUser.uid)
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final requests = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
           'requestId': doc.id,
@@ -319,6 +330,16 @@ class FriendsService {
           'createdAt': data['createdAt'],
         };
       }).toList();
+      
+      // Sort by createdAt on the client side
+      requests.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime); // Descending order
+      });
+      
+      return requests;
     });
   }
 }
