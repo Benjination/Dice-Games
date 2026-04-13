@@ -44,6 +44,69 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
     super.dispose();
   }
 
+  void _showRules() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Farkle Rules',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Scoring:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Single 1 = 100 points'),
+              const Text('• Single 5 = 50 points'),
+              const Text('• Three 1s = 1,000 points'),
+              const Text('• Three 2s = 200 points'),
+              const Text('• Three 3s = 300 points'),
+              const Text('• Three 4s = 400 points'),
+              const Text('• Three 5s = 500 points'),
+              const Text('• Three 6s = 600 points'),
+              const Text('• Four of a kind = 2× three of a kind'),
+              const Text('• Five of a kind = 3× three of a kind'),
+              const Text('• Six of a kind = 4× three of a kind'),
+              const Text('• Straight (1-2-3-4-5-6) = 1,500 points'),
+              const Text('• Three pairs = 1,500 points'),
+              const SizedBox(height: 16),
+              const Text(
+                'Rules:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Roll dice, select scoring dice, then:'),
+              const Text('  - Roll again with remaining dice'),
+              const Text('  - Bank your score and end turn'),
+              const Text('• Hot dice: If all 6 dice score, roll all again!'),
+              const Text('• Farkle: No scoring dice = lose turn score'),
+              const SizedBox(height: 16),
+              const Text(
+                'Win:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• First to 10,000 points wins'),
+              const Text('• Maximum 20 turns'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it!'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _rollDice() {
     if (_game.selectedDice.isNotEmpty) {
       // Must bank or clear selection before rolling
@@ -433,6 +496,11 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
       appBar: AppBar(
         title: const Text('Farkle'),
         actions: [
+          IconButton(
+            onPressed: _showRules,
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Rules',
+          ),
           IconButton(
             onPressed: () {
               Navigator.of(context).push(

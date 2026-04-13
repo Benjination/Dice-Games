@@ -44,6 +44,71 @@ class _PigSinglePlayerScreenState extends State<PigSinglePlayerScreen> {
     super.dispose();
   }
 
+  void _showRules() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Pig Dice Rules',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Goal:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• First player to reach 100 points wins!'),
+              const SizedBox(height: 16),
+              const Text(
+                'How to Play:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Roll the die to add to your turn score'),
+              const Text('• Keep rolling to build your turn score'),
+              const Text('• Press "Hold" to bank your turn score'),
+              const SizedBox(height: 16),
+              const Text(
+                'Pig Out:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Roll a 1 = lose ALL points for this turn'),
+              const Text('• Your turn ends immediately'),
+              const SizedBox(height: 16),
+              const Text(
+                'Strategy:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Risk vs. reward: roll more or play safe?'),
+              const Text('• The higher you go, the more you risk!'),
+              const SizedBox(height: 16),
+              const Text(
+                'Game Limits:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Maximum 20 turns per game'),
+              const Text('• Highest score wins if time runs out'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it!'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _rollDice() {
     if (_gameOver || _game.isPigOut) {
       return;
@@ -323,6 +388,11 @@ class _PigSinglePlayerScreenState extends State<PigSinglePlayerScreen> {
       appBar: AppBar(
         title: const Text('Pig Dice'),
         actions: [
+          IconButton(
+            onPressed: _showRules,
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Rules',
+          ),
           IconButton(
             onPressed: () {
               Navigator.of(context).push(
