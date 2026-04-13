@@ -71,33 +71,40 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (!kIsWeb) {
+      setState(() {
+        _errorMessage =
+            'Google sign-in on mobile requires additional setup. '
+            'Use email or phone instead.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
+
     try {
-      if (kIsWeb) {
-        // Use redirect instead of popup to avoid COOP issues
-        final provider = GoogleAuthProvider();
-        final credential = await FirebaseAuth.instance.signInWithRedirect(provider);
-        
-        // Note: signInWithRedirect doesn't return immediately on web
-        // The page will reload and auth state will be updated automatically
-      } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage =
-              'Google sign-in on mobile requires additional setup. '
-              'Use email or phone instead.';
-        });
-        return;
-      }
+      // Use redirect instead of popup to avoid COOP issues
+      final provider = GoogleAuthProvider();
+      await FirebaseAuth.instance.signInWithRedirect(provider);
+      // Note: The page will redirect and reload automatically
+      // When user returns, auth state will be updated
     } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = e.message ?? 'Google sign-in failed.');
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message ?? 'Google sign-in failed.';
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _errorMessage = 'Google sign-in failed. Please try again.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Google sign-in failed. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -199,9 +206,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const _AuthDivider(label: 'or continue with'),
                   const SizedBox(height: 20),
                   _SocialSignInButton(
-                    onPressed: null, // Temporarily disabled to avoid popup issues
+                    onPressed: _isLoading ? null : _signInWithGoogle,
                     icon: const _GoogleIcon(),
-                    label: 'Continue with Google (Coming Soon)',
+                    label: 'Continue with Google',
                   ),
                   const SizedBox(height: 12),
                   _SocialSignInButton(
