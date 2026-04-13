@@ -86,11 +86,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Use redirect instead of popup to avoid COOP issues
+      // Use popup (redirect doesn't work with GitHub Pages)
       final provider = GoogleAuthProvider();
-      await FirebaseAuth.instance.signInWithRedirect(provider);
-      // Note: The page will redirect and reload automatically
-      // When user returns, auth state will be updated
+      final credential = await FirebaseAuth.instance.signInWithPopup(provider);
+      
+      // Create user document
+      if (credential.user != null) {
+        await UserService.ensureUserDocument(credential.user!);
+      }
+      
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {
@@ -102,6 +109,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() {
           _errorMessage = 'Google sign-in failed. Please try again.';
+          _isLoading = false;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
           _isLoading = false;
         });
       }
