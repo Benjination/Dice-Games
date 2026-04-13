@@ -1,15 +1,15 @@
 {
-    "name": "DiceGames - Roll with Purpose",
-    "short_name": "DiceGames",
-    "start_url": "/Dice-Games/",
+    "name": "Roll Tavern",
+    "short_name": "Roll Tavern",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#1a2332",
     "theme_color": "#1a2332",
-    "description": "Universal dice game platform. Create custom dice games, save them, and share with others. Play Dice Roulette with customizable rules.",
+    "description": "Classic dice games including Farkle, Pig Dice, and Dice Poker. Play solo or with friends.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "categories": ["games", "entertainment"],
-    "scope": "/Dice-Games/",
+    "scope": "/",
     "icons": [
         {
             "src": "icons/Icon-192.png",
