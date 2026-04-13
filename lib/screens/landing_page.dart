@@ -9,6 +9,7 @@ import './games/my_games_screen.dart';
 import './games/browse_public_games_screen.dart';
 import './games/farkle/farkle_mode_screen.dart';
 import './games/pig/pig_mode_screen.dart';
+import './games/dice_poker/dice_poker_mode_screen.dart';
 import './moderator/moderator_screen.dart';
 import './settings/settings_screen.dart';
 import './social/friends_screen.dart';
@@ -553,7 +554,13 @@ class _GameListScreenState extends State<GameListScreen> {
               subtitle: 'Roll five dice and aim for poker hands: pairs, '
                   'three of a kind, straights, and more.',
               icon: Icons.grid_3x3,
-              comingSoon: true,
+              onPlay: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DicePokerModeScreen(),
+                  ),
+                );
+              },
             ),
           ],
         ),

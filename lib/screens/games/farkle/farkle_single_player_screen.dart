@@ -254,6 +254,7 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
         turnScore: _game.turnScore + score,
         availableDice: allDiceScored ? [0, 1, 2, 3, 4, 5] : newAvailable,
         selectedDice: [],
+        rollsThisTurn: allDiceScored ? 0 : _game.rollsThisTurn,
       );
       
       if (allDiceScored) {

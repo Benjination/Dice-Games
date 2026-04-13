@@ -114,5 +114,31 @@ service cloud.firestore {
       allow update, delete: if request.auth != null &&
                                resource.data.userId == request.auth.uid;
     }
-  }
+    
+    // Dice Poker leaderboard scores
+    match /dice_poker_leaderboard/{scoreId} {
+      // Anyone can read leaderboard scores
+      allow read: if true;
+      
+      // Authenticated users can submit their own scores
+      allow create: if request.auth != null &&
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Only the score owner can update/delete their scores
+      allow update, delete: if request.auth != null &&
+                               resource.data.userId == request.auth.uid;
+    }    
+    // Dice Poker leaderboard scores
+    match /dice_poker_leaderboard/{scoreId} {
+      // Anyone can read leaderboard scores
+      allow read: if true;
+      
+      // Authenticated users can submit their own scores
+      allow create: if request.auth != null &&
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Only the score owner can update/delete their scores
+      allow update, delete: if request.auth != null &&
+                               resource.data.userId == request.auth.uid;
+    }  }
 }
