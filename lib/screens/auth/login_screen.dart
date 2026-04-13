@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/dark_academia_theme.dart';
 import '../../services/username_generator.dart';
+import '../../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,10 +32,16 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      
+      // Ensure user document exists in Firestore
+      if (credential.user != null) {
+        await UserService.ensureUserDocument(credential.user!);
+      }
+      
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -72,19 +79,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (kIsWeb) {
         final credential = await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
         
-        // Check if user needs a new username
-        // Generate one if: no displayName, or displayName doesn't match our format
+        // Ensure user has a username in Firestore
         final user = credential.user;
         if (user != null) {
-          final currentName = user.displayName ?? '';
-          final needsNewUsername = currentName.isEmpty || 
-                                   !UsernameGenerator.isValidFormat(currentName);
-          
-          if (needsNewUsername) {
-            final newUsername = UsernameGenerator.generate();
-            await user.updateDisplayName(newUsername);
-            await user.reload();
-          }
+          await UserService.ensureUserDocument(user);
         }
       } else {
         setState(() {
@@ -288,14 +286,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text,
       );
 
-      // Generate a human-readable username
-      final username = UsernameGenerator.generate();
-      
-      // Set the display name
-      await credential.user?.updateDisplayName(username);
-      
-      // Force reload to get the updated profile
-      await credential.user?.reload();
+      // Create Firestore user document with username
+      if (credential.user != null) {
+        await UserService.ensureUserDocument(credential.user!);
+      }
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -537,18 +531,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       if (kIsWeb && _confirmationResult != null) {
         final credential = await _confirmationResult!.confirm(code);
         
-        // Check if user needs a new username
+        // Ensure user has a username in Firestore
         final user = credential.user;
         if (user != null) {
-          final currentName = user.displayName ?? '';
-          final needsNewUsername = currentName.isEmpty || 
-                                   !UsernameGenerator.isValidFormat(currentName);
-          
-          if (needsNewUsername) {
-            final newUsername = UsernameGenerator.generate();
-            await user.updateDisplayName(newUsername);
-            await user.reload();
-          }
+          await UserService.ensureUserDocument(user);
         }
       } else if (!kIsWeb && _verificationId != null) {
         final credential = PhoneAuthProvider.credential(
@@ -557,18 +543,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         );
         final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
         
-        // Check if user needs a new username
+        // Ensure user has a username in Firestore
         final user = userCredential.user;
         if (user != null) {
-          final currentName = user.displayName ?? '';
-          final needsNewUsername = currentName.isEmpty || 
-                                   !UsernameGenerator.isValidFormat(currentName);
-          
-          if (needsNewUsername) {
-            final newUsername = UsernameGenerator.generate();
-            await user.updateDisplayName(newUsername);
-            await user.reload();
-          }
+          await UserService.ensureUserDocument(user);
         }
       } else {
         setState(() => _errorMessage = 'Session expired. Please start over.');

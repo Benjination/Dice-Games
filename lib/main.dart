@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'theme/dark_academia_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/landing_page.dart';
+import 'services/user_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,9 +61,24 @@ class DiceGamesApp extends StatelessWidget {
             );
           }
 
-          if (snapshot.hasData) {
-            // User is logged in - show game list (not guest mode)
-            return const GameListScreen(guest: false);
+          if (snapshot.hasData && snapshot.data != null) {
+            // User is logged in - ensure user document exists in Firestore
+            return FutureBuilder<void>(
+              future: UserService.ensureUserDocument(snapshot.data!),
+              builder: (context, futureSnapshot) {
+                if (futureSnapshot.connectionState == ConnectionState.waiting) {
+                  return Scaffold(
+                    backgroundColor:
+                        DarkAcademiaTheme.buildTheme().scaffoldBackgroundColor,
+                    body: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                // Show game list (not guest mode)
+                return const GameListScreen(guest: false);
+              },
+            );
           }
 
           return const LandingPage();

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/settings_service.dart';
 import '../../services/username_generator.dart';
+import '../../services/user_service.dart';
 import '../../theme/dark_academia_theme.dart';
 
 /// Settings screen for app preferences
@@ -17,6 +18,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _profanityFilterEnabled = true;
   bool _isLoading = true;
+  String? _username;
 
   @override
   void initState() {
@@ -35,17 +37,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Ensures the current user has a username set
+  /// Ensures the current user has a username set in Firestore
   /// Automatically generates one if missing
   Future<void> _ensureUsernameExists() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null && (user.displayName == null || user.displayName!.isEmpty)) {
+    if (user != null) {
       try {
-        final username = UsernameGenerator.generate();
-        await user.updateDisplayName(username);
-        await user.reload();
+        // This will create/update user doc and ensure valid username exists
+        await UserService.ensureUserDocument(user);
+        // Load the username
+        final username = await UserService.getCurrentUsername();
         if (mounted) {
-          setState(() {}); // Refresh to show new username
+          setState(() {
+            _username = username;
+          });
         }
       } catch (e) {
         // Silently fail - user can regenerate manually if needed
@@ -122,11 +127,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true) {
       try {
         final newUsername = UsernameGenerator.generate();
-        await FirebaseAuth.instance.currentUser?.updateDisplayName(newUsername);
-        await FirebaseAuth.instance.currentUser?.reload();
+        await UserService.updateUsername(newUsername);
         
         if (mounted) {
-          setState(() {}); // Refresh to show new username
+          setState(() {
+            _username = newUsername;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Username changed to $newUsername'),
@@ -355,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     leading: CircleAvatar(
                       backgroundColor: DarkAcademiaColors.antiqueBrass,
                       child: Text(
-                        (user.displayName ?? 'U')[0].toUpperCase(),
+                        (_username ?? 'U')[0].toUpperCase(),
                         style: const TextStyle(
                           color: DarkAcademiaColors.navyBlue,
                           fontWeight: FontWeight.bold,
@@ -364,7 +370,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     title: const Text('Username'),
                     subtitle: Text(
-                      user.displayName ?? 'No username set',
+                      _username ?? 'Loading...',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
