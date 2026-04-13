@@ -5,7 +5,7 @@ import '../../models/saved_game.dart';
 import '../../services/game_service.dart';
 import '../../services/user_service.dart';
 import '../../theme/dark_academia_theme.dart';
-import 'dice_pool_screen.dart';
+import '../games/dice_pool_screen.dart';
 
 /// Moderator screen for reviewing and approving pending public games
 class ModeratorScreen extends StatefulWidget {

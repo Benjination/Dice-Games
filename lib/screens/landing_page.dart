@@ -371,7 +371,7 @@ class _GameListScreenState extends State<GameListScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            if (!guest) ...[
+            if (!widget.guest) ...[
               Card(
                 color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.1),
                 child: ListTile(
