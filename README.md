@@ -18,6 +18,10 @@ Website temporary: https://benjination.github.io/Dice-Games/
 ### User Features
 - **Firebase Authentication**: Email/password, Google sign-in, Phone (SMS)
 - **Human-readable usernames**: Auto-generated names like "BraveDragon5847" (AdjectiveNoun####)
+- **Progressive Web App (PWA)**: Install on your phone for a native app experience
+  - Works offline with cached resources
+  - Add to home screen on iOS and Android
+  - Fast loading and native feel
 - **Save games**: Save your dice configurations privately
 - **Publish games**: Submit games for moderation to share publicly
 - **Profanity filter**: Optional content filtering (enabled by default)
@@ -49,6 +53,16 @@ Website temporary: https://benjination.github.io/Dice-Games/
 - Flutter SDK 3.41+ 
 - Dart 3.11+
 - Firebase project (for auth and Firestore)
+
+### 📱 Install on Your Phone
+
+DiceGames works as a Progressive Web App (PWA) - install it on your phone for a native app experience!
+
+**See: [PWA_INSTALL.md](PWA_INSTALL.md) for detailed installation instructions**
+
+Quick install:
+- **iOS**: Open in Safari → Share → Add to Home Screen
+- **Android**: Open in Chrome → Menu → Install App
 
 ### Local Development
 ```bash

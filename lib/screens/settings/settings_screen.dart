@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/settings_service.dart';
@@ -144,6 +145,189 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _showInstallDialog() async {
+    // Detect device type from user agent
+    final isIOS = kIsWeb && 
+        (RegExp(r'iPhone|iPad|iPod').hasMatch(
+            Uri.base.toString()) || 
+         RegExp(r'iPhone|iPad|iPod').hasMatch(
+            WidgetsBinding.instance.platformDispatcher.defaultRouteName));
+    
+    if (!kIsWeb) {
+      // Native app already installed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You are already using the native app!'),
+        ),
+      );
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              isIOS ? Icons.phone_iphone : Icons.phone_android,
+              color: DarkAcademiaColors.antiqueBrass,
+            ),
+            const SizedBox(width: 12),
+            const Text('Install App'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isIOS ? 'Install on iOS:' : 'Install on Android/Desktop:',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (isIOS) ...[
+                _buildInstallStep(
+                  '1',
+                  'Tap the Share button',
+                  Icons.ios_share,
+                ),
+                const SizedBox(height: 8),
+                _buildInstallStep(
+                  '2',
+                  'Scroll down and tap "Add to Home Screen"',
+                  Icons.add_box_outlined,
+                ),
+                const SizedBox(height: 8),
+                _buildInstallStep(
+                  '3',
+                  'Tap "Add" to confirm',
+                  Icons.check_circle_outline,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: DarkAcademiaColors.antiqueBrass,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Note: This feature only works in Safari browser on iOS',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                _buildInstallStep(
+                  '1',
+                  'Click the install icon in your browser\'s address bar',
+                  Icons.download,
+                ),
+                const SizedBox(height: 8),
+                _buildInstallStep(
+                  '2',
+                  'Or use browser menu → "Install DiceGames"',
+                  Icons.more_vert,
+                ),
+                const SizedBox(height: 8),
+                _buildInstallStep(
+                  '3',
+                  'The app will be added to your home screen',
+                  Icons.home,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.green.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        size: 20,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Works offline • Fast loading • Native feel',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstallStep(String number, String text, IconData icon) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: DarkAcademiaColors.antiqueBrass,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: DarkAcademiaColors.navyBlue,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Icon(icon, size: 20, color: DarkAcademiaColors.antiqueBrass),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -224,6 +408,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: _toggleProfanityFilter,
                 ),
                 const Divider(),
+                // Install App section (PWA)
+                if (kIsWeb) ...[
+                  const ListTile(
+                    title: Text(
+                      'Mobile App',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: DarkAcademiaColors.antiqueBrass,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('Install App'),
+                    subtitle: const Text(
+                      'Add DiceGames to your phone\'s home screen for a native app experience',
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: _showInstallDialog,
+                  ),
+                  const Divider(),
+                ],
                 // About section
                 const ListTile(
                   title: Text(
