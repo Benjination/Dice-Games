@@ -53,8 +53,10 @@ service cloud.firestore {
       // Users can write to their own games
       allow write: if request.auth != null && request.auth.uid == userId;
       
-      // Note: Shared games are read-only (cannot modify or publish)
-      // Only the original creator can publish via publishGame() which saves to pendingGames
+      // Any authenticated user can create a shared game for someone else
+      // (by setting sharedBy to their own UID)
+      allow create: if request.auth != null && 
+                       request.resource.data.sharedBy == request.auth.uid;
     }
     
     // Pending games awaiting moderation
