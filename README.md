@@ -17,17 +17,23 @@ Website temporary: https://benjination.github.io/Dice-Games/
 
 ### User Features
 - **Firebase Authentication**: Email/password, Google sign-in, Phone (SMS)
+- **Human-readable usernames**: Auto-generated names like "BraveDragon5847" (AdjectiveNoun####)
 - **Save games**: Save your dice configurations privately
 - **Publish games**: Submit games for moderation to share publicly
 - **Profanity filter**: Optional content filtering (enabled by default)
 - **My Games**: View and replay all your saved games
+- **Username regeneration**: Change your randomly generated username anytime
+- **Community Games**: Browse and save public games created by other players
+
+### Moderation
+- **Moderation system**: Approve/reject pending public games (moderators only)
+- **Firebase Custom Claims**: Role-based access control for moderators
+- See [MODERATOR_SETUP.md](MODERATOR_SETUP.md) for setup instructions
 
 ### Coming Soon
 - Farkle
 - Pig Dice
 - Dice Poker
-- Moderation system for published games
-- Public game library
 
 ---
 

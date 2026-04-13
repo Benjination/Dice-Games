@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/dark_academia_theme.dart';
+import '../../services/user_service.dart';
 import './auth/login_screen.dart';
 import './games/dice_pool_config_screen.dart';
 import './games/my_games_screen.dart';
 import './games/browse_public_games_screen.dart';
+import './moderator/moderator_screen.dart';
 import './settings/settings_screen.dart';
 
 class LandingPage extends StatelessWidget {
@@ -268,18 +270,55 @@ class LandingPage extends StatelessWidget {
   }
 }
 
-class GameListScreen extends StatelessWidget {
+class GameListScreen extends StatefulWidget {
   const GameListScreen({super.key, required this.guest});
 
   final bool guest;
 
   @override
+  State<GameListScreen> createState() => _GameListScreenState();
+}
+
+class _GameListScreenState extends State<GameListScreen> {
+  bool _isModerator = false;
+  bool _isCheckingModerator = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.guest) {
+      _checkModeratorStatus();
+    } else {
+      _isCheckingModerator = false;
+    }
+  }
+
+  Future<void> _checkModeratorStatus() async {
+    try {
+      final isMod = await UserService.isUserModerator();
+      if (mounted) {
+        setState(() {
+          _isModerator = isMod;
+          _isCheckingModerator = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isModerator = false;
+          _isCheckingModerator = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(guest ? 'Games' : 'Game Library'),
+        title: Text(widget.guest ? 'Games' : 'Game Library'),
         actions: [
-          if (!guest) ...[
+          if (!widget.guest) ...[
             IconButton(
               onPressed: () {
                 Navigator.of(context).push(
@@ -302,6 +341,18 @@ class GameListScreen extends StatelessWidget {
               icon: const Icon(Icons.public),
               tooltip: 'Community Games',
             ),
+            if (_isModerator && !_isCheckingModerator)
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ModeratorScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.admin_panel_settings),
+                tooltip: 'Approve Games',
+              ),
             IconButton(
               onPressed: () {
                 Navigator.of(context).push(
@@ -372,6 +423,34 @@ class GameListScreen extends StatelessWidget {
                   },
                 ),
               ),
+              if (_isModerator && !_isCheckingModerator) ...[
+                const SizedBox(height: 12),
+                Card(
+                  color: DarkAcademiaColors.richCognac.withValues(alpha: 0.15),
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.admin_panel_settings,
+                      color: DarkAcademiaColors.antiqueBrass,
+                    ),
+                    title: const Text(
+                      'Approve Games',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: DarkAcademiaColors.antiqueBrass,
+                      ),
+                    ),
+                    subtitle: const Text('Review and approve pending public games'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ModeratorScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               Text(
                 'Available Games',

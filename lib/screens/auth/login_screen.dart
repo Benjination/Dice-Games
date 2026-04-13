@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/dark_academia_theme.dart';
+import '../../services/username_generator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -69,7 +70,22 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       if (kIsWeb) {
-        await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+        final credential = await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+        
+        // Check if user needs a new username
+        // Generate one if: no displayName, or displayName doesn't match our format
+        final user = credential.user;
+        if (user != null) {
+          final currentName = user.displayName ?? '';
+          final needsNewUsername = currentName.isEmpty || 
+                                   !UsernameGenerator.isValidFormat(currentName);
+          
+          if (needsNewUsername) {
+            final newUsername = UsernameGenerator.generate();
+            await user.updateDisplayName(newUsername);
+            await user.reload();
+          }
+        }
       } else {
         setState(() {
           _isLoading = false;
@@ -266,10 +282,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Create the user account
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      // Generate a human-readable username
+      final username = UsernameGenerator.generate();
+      
+      // Set the display name
+      await credential.user?.updateDisplayName(username);
+      
+      // Force reload to get the updated profile
+      await credential.user?.reload();
+
       if (mounted) {
         Navigator.of(context).pop();
         Navigator.of(context).pop(true);
@@ -508,13 +535,41 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     });
     try {
       if (kIsWeb && _confirmationResult != null) {
-        await _confirmationResult!.confirm(code);
+        final credential = await _confirmationResult!.confirm(code);
+        
+        // Check if user needs a new username
+        final user = credential.user;
+        if (user != null) {
+          final currentName = user.displayName ?? '';
+          final needsNewUsername = currentName.isEmpty || 
+                                   !UsernameGenerator.isValidFormat(currentName);
+          
+          if (needsNewUsername) {
+            final newUsername = UsernameGenerator.generate();
+            await user.updateDisplayName(newUsername);
+            await user.reload();
+          }
+        }
       } else if (!kIsWeb && _verificationId != null) {
         final credential = PhoneAuthProvider.credential(
           verificationId: _verificationId!,
           smsCode: code,
         );
-        await FirebaseAuth.instance.signInWithCredential(credential);
+        final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+        
+        // Check if user needs a new username
+        final user = userCredential.user;
+        if (user != null) {
+          final currentName = user.displayName ?? '';
+          final needsNewUsername = currentName.isEmpty || 
+                                   !UsernameGenerator.isValidFormat(currentName);
+          
+          if (needsNewUsername) {
+            final newUsername = UsernameGenerator.generate();
+            await user.updateDisplayName(newUsername);
+            await user.reload();
+          }
+        }
       } else {
         setState(() => _errorMessage = 'Session expired. Please start over.');
         return;

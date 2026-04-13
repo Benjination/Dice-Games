@@ -231,4 +231,90 @@ class GameService {
 
     return newDocId;
   }
+
+  // =========================================================================
+  // MODERATOR METHODS
+  // =========================================================================
+
+  /// Loads all pending games awaiting moderation (moderator only)
+  static Future<List<SavedGame>> loadPendingGames({int limit = 50}) async {
+    final snapshot = await _firestore
+        .collection('pendingGames')
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => SavedGame.fromJson(doc.data()))
+        .toList();
+  }
+
+  /// Approves a pending game and moves it to public games (moderator only)
+  static Future<void> approveGame(String gameId) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    // Get the pending game
+    final pendingDoc = await _firestore
+        .collection('pendingGames')
+        .doc(gameId)
+        .get();
+
+    if (!pendingDoc.exists) {
+      throw Exception('Game not found in pending queue');
+    }
+
+    final gameData = pendingDoc.data()!;
+    
+    // Move to publicGames collection
+    await _firestore
+        .collection('publicGames')
+        .doc(gameId)
+        .set({
+      ...gameData,
+      'approvedAt': DateTime.now().toIso8601String(),
+      'approvedBy': user.uid,
+    });
+
+    // Remove from pending
+    await _firestore
+        .collection('pendingGames')
+        .doc(gameId)
+        .delete();
+  }
+
+  /// Rejects a pending game and optionally provides a reason (moderator only)
+  static Future<void> rejectGame(String gameId, {String? reason}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    // Get the pending game
+    final pendingDoc = await _firestore
+        .collection('pendingGames')
+        .doc(gameId)
+        .get();
+
+    if (!pendingDoc.exists) {
+      throw Exception('Game not found in pending queue');
+    }
+
+    final gameData = pendingDoc.data()!;
+    
+    // Move to rejectedGames collection for record-keeping
+    await _firestore
+        .collection('rejectedGames')
+        .doc(gameId)
+        .set({
+      ...gameData,
+      'rejectedAt': DateTime.now().toIso8601String(),
+      'rejectedBy': user.uid,
+      if (reason != null) 'rejectionReason': reason,
+    });
+
+    // Remove from pending
+    await _firestore
+        .collection('pendingGames')
+        .doc(gameId)
+        .delete();
+  }
 }

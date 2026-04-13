@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/settings_service.dart';
+import '../../services/username_generator.dart';
 import '../../theme/dark_academia_theme.dart';
 
 /// Settings screen for app preferences
@@ -20,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
+    _ensureUsernameExists();
   }
 
   Future<void> _loadSettings() async {
@@ -29,6 +31,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _profanityFilterEnabled = filterEnabled;
         _isLoading = false;
       });
+    }
+  }
+
+  /// Ensures the current user has a username set
+  /// Automatically generates one if missing
+  Future<void> _ensureUsernameExists() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && (user.displayName == null || user.displayName!.isEmpty)) {
+      try {
+        final username = UsernameGenerator.generate();
+        await user.updateDisplayName(username);
+        await user.reload();
+        if (mounted) {
+          setState(() {}); // Refresh to show new username
+        }
+      } catch (e) {
+        // Silently fail - user can regenerate manually if needed
+      }
     }
   }
 
@@ -77,6 +97,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _regenerateUsername() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Regenerate Username'),
+        content: const Text(
+          'Generate a new random username? Your old username will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Generate New'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final newUsername = UsernameGenerator.generate();
+        await FirebaseAuth.instance.currentUser?.updateDisplayName(newUsername);
+        await FirebaseAuth.instance.currentUser?.reload();
+        
+        if (mounted) {
+          setState(() {}); // Refresh to show new username
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Username changed to $newUsername'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating username: $e'),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -101,14 +168,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: DarkAcademiaColors.antiqueBrass,
+                      child: Text(
+                        (user.displayName ?? 'U')[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: DarkAcademiaColors.navyBlue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: const Text('Username'),
+                    subtitle: Text(
+                      user.displayName ?? 'No username set',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.refresh, size: 20),
+                      tooltip: 'Regenerate username',
+                      onPressed: _regenerateUsername,
+                    ),
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.email),
                     title: const Text('Email'),
                     subtitle: Text(user.email ?? 'No email'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.person),
-                    title: const Text('User ID'),
-                    subtitle: Text(user.uid),
                   ),
                   ListTile(
                     leading: const Icon(Icons.logout),

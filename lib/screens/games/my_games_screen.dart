@@ -28,7 +28,7 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
   List<SavedGame>? _games;
   bool _isLoading = true;
   String? _error;
-  GameFilter _currentFilter = GameFilter.all;
+  GameFilter _currentFilter = GameFilter.public;
 
   @override
   void initState() {
