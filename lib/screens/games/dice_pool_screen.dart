@@ -24,10 +24,12 @@ class DicePoolScreen extends StatefulWidget {
     super.key,
     required this.configs,
     this.gameName = 'Dice Roulette',
+    this.generalRules,
   });
 
   final List<DiceConfig> configs;
   final String gameName;
+  final String? generalRules;
 
   @override
   State<DicePoolScreen> createState() => _DicePoolScreenState();
@@ -42,7 +44,7 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
   late Random _random;
   Timer? _animationTimer;
   
-  final _generalRulesController = TextEditingController();
+  late final TextEditingController _generalRulesController;
   final Map<String, Map<int, TextEditingController>> _faceRulesControllers = {};
 
   @override
@@ -59,6 +61,11 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
     _finalValues = List.filled(widget.configs.length, null);
     _animatingDice = {};
     _highlightedDice = {};
+    
+    // Initialize general rules controller with saved value or empty
+    _generalRulesController = TextEditingController(
+      text: widget.generalRules ?? '',
+    );
     
     // Initialize face rules controllers for each die and each face
     for (final config in widget.configs) {
@@ -366,6 +373,9 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
     }
 
     try {
+      // Check if a game with this name already exists
+      final existingGame = await GameService.findGameByName(name);
+      
       // Get current face rules from controllers
       final updatedConfigs = widget.configs.map((config) {
         final faceRules = <int, String>{};
@@ -386,10 +396,13 @@ class _DicePoolScreenState extends State<DicePoolScreen> {
         name: name,
         generalRules: _generalRulesController.text.trim(),
         diceConfigs: updatedConfigs,
+        gameId: existingGame?.id, // Pass existing ID to overwrite
       );
 
       if (mounted) {
-        _showSnackBar('Game saved successfully!');
+        _showSnackBar(existingGame != null 
+          ? 'Game updated successfully!' 
+          : 'Game saved successfully!');
       }
     } catch (e) {
       if (mounted) {
@@ -647,15 +660,20 @@ class _DieCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    config.label,
-                    style: const TextStyle(
-                      color: DarkAcademiaColors.antiqueBrass,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                  Expanded(
+                    child: Text(
+                      config.label,
+                      style: const TextStyle(
+                        color: DarkAcademiaColors.antiqueBrass,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
+                  const SizedBox(width: 4),
                   Icon(
                     Icons.touch_app,
                     size: 12,
@@ -787,8 +805,14 @@ class _RollResultsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 32,
-                          height: 32,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: DarkAcademiaColors.antiqueBrass.withValues(
                               alpha: 0.2,
@@ -799,15 +823,14 @@ class _RollResultsCard extends StatelessWidget {
                               width: 2,
                             ),
                           ),
-                          child: Center(
-                            child: Text(
-                              rule['label']!,
-                              style: const TextStyle(
-                                color: DarkAcademiaColors.antiqueBrass,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                          child: Text(
+                            rule['label']!,
+                            style: const TextStyle(
+                              color: DarkAcademiaColors.antiqueBrass,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                         const SizedBox(width: 12),

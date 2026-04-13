@@ -1,5 +1,5 @@
 class DiceConfig {
-  final String label; // Single uppercase letter A–Z
+  final String label; // Die name (up to 30 characters)
   final int sides;    // Number of faces on this die
   final Map<int, String>? faceRules; // Optional: rules for each face (1-based)
 

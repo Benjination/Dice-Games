@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/dice_config.dart';
 import '../../models/saved_game.dart';
+import '../../services/game_service.dart';
 import '../../theme/dark_academia_theme.dart';
 import './dice_pool_screen.dart';
 
@@ -20,11 +21,10 @@ class DicePoolConfigScreen extends StatefulWidget {
 class _DicePoolConfigScreenState extends State<DicePoolConfigScreen> {
   int _diceCount = 2;
   final List<_DieSetup> _dice = [
-    _DieSetup(label: 'A', sides: 6),
-    _DieSetup(label: 'B', sides: 6),
+    _DieSetup(label: 'Die 1', sides: 6),
+    _DieSetup(label: 'Die 2', sides: 6),
   ];
 
-  final _availableLetters = 'ABCDEFGHIJ'.split('');
   final _availableSides = [4, 6, 8, 10, 12, 20];
 
   void _updateDiceCount(String value) {
@@ -37,7 +37,7 @@ class _DicePoolConfigScreenState extends State<DicePoolConfigScreen> {
         // Add more dice
         while (_dice.length < count) {
           _dice.add(_DieSetup(
-            label: _availableLetters[_dice.length],
+            label: 'Die ${_dice.length + 1}',
             sides: 6,
           ));
         }
@@ -130,7 +130,7 @@ class _DicePoolConfigScreenState extends State<DicePoolConfigScreen> {
     );
   }
 
-  void _saveGame(String name, bool isPublic) {
+  void _saveGame(String name, bool isPublic) async {
     if (name.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a game name')),
@@ -139,33 +139,61 @@ class _DicePoolConfigScreenState extends State<DicePoolConfigScreen> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    final configs = _dice
-        .map((d) => DiceConfig(
-              label: d.label,
-              sides: d.sides,
-            ))
-        .toList();
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to save games')),
+      );
+      return;
+    }
 
-    final savedGame = SavedGame(
-      name: name.trim(),
-      generalRules: null,
-      dice: configs,
-      isPublic: isPublic,
-      creatorUid: user?.uid,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+    try {
+      Navigator.of(context).pop(); // Close dialog first
+      
+      // Check if a game with this name already exists
+      final existingGame = await GameService.findGameByName(name.trim());
+      
+      final configs = _dice
+          .map((d) => DiceConfig(
+                label: d.label,
+                sides: d.sides,
+              ))
+          .toList();
 
-    // TODO: Save to Firestore
-    // For now, just show a success message
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Game "${savedGame.name}" saved as ${isPublic ? "public" : "private"}',
-        ),
-      ),
-    );
+      if (isPublic) {
+        await GameService.publishGame(
+          name: name.trim(),
+          generalRules: '',
+          diceConfigs: configs,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Game "${name.trim()}" submitted for moderation!')),
+          );
+        }
+      } else {
+        await GameService.saveGame(
+          name: name.trim(),
+          generalRules: '',
+          diceConfigs: configs,
+          gameId: existingGame?.id, // Pass existing ID to overwrite
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(existingGame != null
+                  ? 'Game "${name.trim()}" updated!'
+                  : 'Game "${name.trim()}" saved!'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving game: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -347,30 +375,27 @@ class _DieConfigRowState extends State<_DieConfigRow> {
   }
 
   void _updateLabel(String value) {
-    // Only allow single uppercase letters A-Z, but allow temporary empty state
-    final sanitized = value.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
-    final finalValue = sanitized.isEmpty ? '' : sanitized.substring(0, 1);
+    // Allow alphanumeric characters, spaces, and basic punctuation
+    final trimmed = value.trim();
     
-    _labelController.value = TextEditingValue(
-      text: finalValue,
-      selection: TextSelection.collapsed(offset: finalValue.length),
-    );
-    
-    // Only update parent if we have a valid letter
-    if (finalValue.isNotEmpty) {
-      _previousLabel = finalValue;
-      widget.onLabelChanged(finalValue);
+    // Update parent with the cleaned value
+    if (trimmed.isNotEmpty) {
+      _previousLabel = trimmed;
+      widget.onLabelChanged(trimmed);
     }
   }
 
   void _validateAndRestore() {
-    if (_labelController.text.trim().isEmpty) {
+    final trimmed = _labelController.text.trim();
+    if (trimmed.isEmpty) {
       // Restore previous value if empty
       _labelController.text = _previousLabel;
       widget.onLabelChanged(_previousLabel);
     } else {
-      // Ensure we have the latest valid value saved
-      _previousLabel = _labelController.text;
+      // Save the current trimmed value
+      _previousLabel = trimmed;
+      _labelController.text = trimmed;
+      widget.onLabelChanged(trimmed);
     }
   }
 
@@ -383,20 +408,25 @@ class _DieConfigRowState extends State<_DieConfigRow> {
           children: [
             // Label input
             SizedBox(
-              width: 56,
+              width: 200,
               child: TextField(
                 controller: _labelController,
                 focusNode: _focusNode,
                 textAlign: TextAlign.center,
-                maxLength: 1,
+                maxLength: 30,
                 style: const TextStyle(
                   color: DarkAcademiaColors.antiqueBrass,
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                 ),
                 decoration: InputDecoration(
                   counterText: '',
+                  labelText: 'Die Name',
+                  labelStyle: TextStyle(
+                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                    fontSize: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
@@ -417,7 +447,7 @@ class _DieConfigRowState extends State<_DieConfigRow> {
                     ),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 12,
                     vertical: 12,
                   ),
                   filled: true,

@@ -145,6 +145,23 @@ class GameService {
     return SavedGame.fromJson(doc.data()!);
   }
 
+  /// Finds a game by name for the current user
+  static Future<SavedGame?> findGameByName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('games')
+        .where('name', isEqualTo: name)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return SavedGame.fromJson(snapshot.docs.first.data());
+  }
+
   /// Deletes a game
   static Future<void> deleteGame(String gameId) async {
     final user = _auth.currentUser;

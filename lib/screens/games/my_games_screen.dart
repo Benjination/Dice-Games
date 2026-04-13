@@ -97,6 +97,7 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
         builder: (context) => DicePoolScreen(
           configs: game.dice,
           gameName: game.name,
+          generalRules: game.generalRules,
         ),
       ),
     );
