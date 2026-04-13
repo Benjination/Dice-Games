@@ -28,11 +28,20 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   }
 
   Future<void> _loadPendingCount() async {
-    final count = await FriendsService.getPendingRequestCount();
-    if (mounted) {
-      setState(() {
-        _pendingRequestCount = count;
-      });
+    try {
+      final count = await FriendsService.getPendingRequestCount();
+      if (mounted) {
+        setState(() {
+          _pendingRequestCount = count;
+        });
+      }
+    } catch (e) {
+      // If error loading count, just default to 0
+      if (mounted) {
+        setState(() {
+          _pendingRequestCount = 0;
+        });
+      }
     }
   }
 
