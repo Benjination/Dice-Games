@@ -1,7 +1,7 @@
 {
     "name": "DiceGames - Roll with Purpose",
     "short_name": "DiceGames",
-    "start_url": "./",
+    "start_url": "/Dice-Games/",
     "display": "standalone",
     "background_color": "#1a2332",
     "theme_color": "#1a2332",
@@ -9,7 +9,7 @@
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "categories": ["games", "entertainment"],
-    "scope": "./",
+    "scope": "/Dice-Games/",
     "icons": [
         {
             "src": "icons/Icon-192.png",
