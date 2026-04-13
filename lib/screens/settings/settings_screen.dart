@@ -19,6 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _profanityFilterEnabled = true;
   bool _isLoading = true;
   String? _username;
+  bool _usernameLocked = true;
 
   @override
   void initState() {
@@ -45,11 +46,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       try {
         // This will create/update user doc and ensure valid username exists
         await UserService.ensureUserDocument(user);
-        // Load the username
+        // Load the username and lock status
         final username = await UserService.getCurrentUsername();
+        final isLocked = await UserService.isUsernameLocked();
         if (mounted) {
           setState(() {
             _username = username;
+            _usernameLocked = isLocked;
           });
         }
       } catch (e) {
@@ -103,53 +106,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _regenerateUsername() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Regenerate Username'),
-        content: const Text(
-          'Generate a new random username? Your old username will be lost.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Generate New'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        final newUsername = UsernameGenerator.generate();
-        await UserService.updateUsername(newUsername);
-        
-        if (mounted) {
-          setState(() {
-            _username = newUsername;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Username changed to $newUsername'),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error updating username: $e'),
-            ),
-          );
-        }
-      }
-    }
-  }
+  // Username regeneration removed to maintain stable user identity
+  // Users need permanent usernames to build connections and reputation
 
   Future<void> _showInstallDialog() async {
     // Detect device type from user agent
@@ -369,17 +327,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     title: const Text('Username'),
-                    subtitle: Text(
-                      _username ?? 'Loading...',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.refresh, size: 20),
-                      tooltip: 'Regenerate username',
-                      onPressed: _regenerateUsername,
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _username ?? 'Loading...',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              _usernameLocked ? Icons.lock : Icons.lock_open,
+                              size: 11,
+                              color: DarkAcademiaColors.cream.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _usernameLocked 
+                                  ? 'Permanent - your unique identity'
+                                  : 'Not confirmed yet',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: DarkAcademiaColors.cream.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   ListTile(

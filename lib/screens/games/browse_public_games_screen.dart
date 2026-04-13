@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/saved_game.dart';
-import '../../services/game_service.dart';
-import '../../theme/dark_academia_theme.dart';
+import '../../services/game_service.dart';import '../../services/user_service.dart';import '../../theme/dark_academia_theme.dart';
 import 'dice_pool_screen.dart';
 
 /// Screen for browsing and saving public games from the community
@@ -172,8 +171,20 @@ class _BrowsePublicGamesScreenState extends State<BrowsePublicGamesScreen> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '${game.dice.length} dice • ${_formatDate(game.createdAt)}',
+                                FutureBuilder<String>(
+                                  future: game.creatorUid != null
+                                      ? UserService.getUsernameByUid(game.creatorUid!)
+                                      : Future.value('Unknown'),
+                                  builder: (context, snapshot) {
+                                    final creatorName = snapshot.data ?? 'Loading...';
+                                    return Text(
+                                      'By $creatorName • ${game.dice.length} dice • ${_formatDate(game.createdAt)}',
+                                      style: TextStyle(
+                                        color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.8),
+                                        fontSize: 13,
+                                      ),
+                                    );
+                                  },
                                 ),
                                 if (game.generalRules?.isNotEmpty ?? false)
                                   Padding(

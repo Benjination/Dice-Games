@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'theme/dark_academia_theme.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/username_welcome_dialog.dart';
 import 'screens/landing_page.dart';
 import 'services/user_service.dart';
 
@@ -75,8 +76,8 @@ class DiceGamesApp extends StatelessWidget {
                     ),
                   );
                 }
-                // Show game list (not guest mode)
-                return const GameListScreen(guest: false);
+                // Show username welcome dialog if needed, then game list
+                return const UsernameChecker();
               },
             );
           }
@@ -87,6 +88,72 @@ class DiceGamesApp extends StatelessWidget {
     } catch (_) {
       return const LandingPage();
     }
+  }
+}
+
+/// Widget that checks if user needs to confirm their username
+/// Shows welcome dialog for new users with unlocked usernames
+class UsernameChecker extends StatefulWidget {
+  const UsernameChecker({super.key});
+
+  @override
+  State<UsernameChecker> createState() => _UsernameCheckerState();
+}
+
+class _UsernameCheckerState extends State<UsernameChecker> {
+  bool _hasCheckedUsername = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUsernameStatus();
+  }
+
+  Future<void> _checkUsernameStatus() async {
+    if (_hasCheckedUsername) return;
+
+    try {
+      final isLocked = await UserService.isUsernameLocked();
+      final username = await UserService.getCurrentUsername();
+
+      if (!isLocked && username != null && mounted) {
+        // Show welcome dialog to let user confirm or regenerate
+        await showDialog(
+          context: context,
+          barrierDismissible: false, // Must confirm username
+          builder: (context) => UsernameWelcomeDialog(
+            initialUsername: username,
+          ),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _hasCheckedUsername = true;
+        });
+      }
+    } catch (e) {
+      // If error, continue to app
+      if (mounted) {
+        setState(() {
+          _hasCheckedUsername = true;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_hasCheckedUsername) {
+      return Scaffold(
+        backgroundColor: DarkAcademiaTheme.buildTheme().scaffoldBackgroundColor,
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return const GameListScreen(guest: false);
   }
 }
 
