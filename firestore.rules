@@ -60,8 +60,13 @@ service cloud.firestore {
       allow read: if request.auth != null && 
                      resource.data.creatorUid == request.auth.uid;
       
-      // Only moderators can update/delete (add custom claims for this)
-      // allow update, delete: if request.auth.token.moderator == true;
+      // Moderators can read all pending games
+      allow read: if request.auth != null && 
+                     request.auth.token.moderator == true;
+      
+      // Only moderators can update/delete
+      allow update, delete: if request.auth != null && 
+                               request.auth.token.moderator == true;
     }
     
     // Public approved games (to be implemented)
@@ -69,9 +74,9 @@ service cloud.firestore {
       // Anyone can read public games
       allow read: if true;
       
-      // Only moderators can write (add custom claims for this)
-      // allow write: if request.auth != null && 
-      //                 request.auth.token.moderator == true;
+      // Only moderators can write
+      allow write: if request.auth != null && 
+                      request.auth.token.moderator == true;
     }
   }
 }
