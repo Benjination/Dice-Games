@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../theme/dark_academia_theme.dart';
 import './farkle_single_player_screen.dart';
 import './farkle_invite_friends_screen.dart';
-import '../auth/login_screen.dart';
+import '../../auth/login_screen.dart';
 
 /// Screen for selecting Farkle game mode (Single-Player or Multiplayer)
 class FarkleModeScreen extends StatelessWidget {
@@ -176,7 +176,7 @@ class FarkleModeScreen extends StatelessWidget {
               Navigator.of(context).pop();
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const LoginScreen(),
+                  builder: (_) => LoginScreen(),
                 ),
               );
             },

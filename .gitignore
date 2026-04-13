@@ -48,3 +48,12 @@ package-lock.json
 
 # Firebase Admin SDK credentials (NEVER commit this!)
 serviceAccountKey.json
+
+# Admin scripts and their dependencies
+set-moderator.js
+set-moderator-by-username.js
+package.json
+package-lock.json
+
+# Generated web files (created during build)
+web/flutter_service_worker.js

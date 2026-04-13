@@ -15,7 +15,11 @@ DiceGames uses **Firebase Custom Claims** to implement role-based access control
 
 ## Setting Up Moderators
 
-Firebase Custom Claims can only be set using the **Firebase Admin SDK**, which runs in a trusted server environment (not in the Flutter app). You have two main options:
+Firebase Custom Claims can only be set using the **Firebase Admin SDK**, which runs in a trusted server environment (not in the Flutter app). 
+
+⚠️ **Security Note**: Admin scripts should NEVER be committed to a public repository. Keep them in a separate private location or use Firebase Cloud Functions.
+
+You have two main options:
 
 ### Option 1: Using Firebase Cloud Functions (Recommended)
 
