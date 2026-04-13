@@ -13,7 +13,15 @@ service cloud.firestore {
       
       // User's friends subcollection
       match /friends/{friendId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Users can read their own friends list
+        allow read: if request.auth != null && request.auth.uid == userId;
+        
+        // Users can write to their own friends list
+        allow write: if request.auth != null && request.auth.uid == userId;
+        
+        // OR users can add themselves to someone else's friends list
+        // (needed for bidirectional friendship creation during accept)
+        allow create: if request.auth != null && request.auth.uid == friendId;
       }
     }
     
