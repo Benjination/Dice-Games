@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -23,6 +24,11 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
   bool _isRolling = false;
   String? _message;
   bool _gameOver = false;
+  
+  // Animation state
+  Timer? _animationTimer;
+  Set<int> _animatingDice = {};
+  List<int> _finalDiceValues = List.filled(6, 0);
 
   @override
   void initState() {
@@ -30,6 +36,12 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
     _game = FarkleGame(
       gameId: DateTime.now().millisecondsSinceEpoch.toString(),
     );
+  }
+
+  @override
+  void dispose() {
+    _animationTimer?.cancel();
+    super.dispose();
   }
 
   void _rollDice() {
@@ -43,37 +55,81 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
       _message = null;
     });
 
-    // Animate rolling
-    Future.delayed(const Duration(milliseconds: 300), () {
-      final newValues = List<int>.from(_game.diceValues);
-      
-      // Roll only available dice
-      for (final index in _game.availableDice) {
-        newValues[index] = _random.nextInt(6) + 1;
-      }
+    // Cancel any existing animation
+    _animationTimer?.cancel();
+    
+    // Prepare final values for dice being rolled
+    final newValues = List<int>.from(_game.diceValues);
+    final rollingIndices = _game.availableDice.toList();
+    
+    // Generate final values for each die being rolled
+    for (final index in rollingIndices) {
+      _finalDiceValues[index] = _random.nextInt(6) + 1;
+      newValues[index] = _finalDiceValues[index];
+      _animatingDice.add(index);
+    }
 
-      // Get values of rolled dice
-      final rolledValues = _game.availableDice.map((i) => newValues[i]).toList();
-      
-      // Check if this is a farkle (no scoring dice)
-      final isFarkle = !FarkleScoring.hasScoring(rolledValues);
-
-      setState(() {
-        _game = _game.copyWith(
-          diceValues: newValues,
-          rollsThisTurn: _game.rollsThisTurn + 1,
-          isFarkle: isFarkle,
-        );
-        _isRolling = false;
-
-        if (isFarkle) {
-          _message = '💥 FARKLE! You lose ${_game.turnScore} points!';
-          Future.delayed(const Duration(seconds: 2), _endTurn);
-        } else {
-          _message = 'Select scoring dice to bank';
+    // Start rapid cycling animation (50ms updates)
+    _animationTimer = Timer.periodic(
+      const Duration(milliseconds: 50),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
         }
+
+        setState(() {
+          // Update animating dice with random values for visual effect
+          for (final index in _animatingDice) {
+            final tempValues = List<int>.from(_game.diceValues);
+            tempValues[index] = _random.nextInt(6) + 1;
+            _game = _game.copyWith(diceValues: tempValues);
+          }
+        });
+      },
+    );
+
+    // Schedule cascade locking of dice (1.0s, 1.2s, 1.4s, etc.)
+    for (int i = 0; i < rollingIndices.length; i++) {
+      final dieIndex = rollingIndices[i];
+      final lockDelay = Duration(milliseconds: 1000 + (i * 200));
+      
+      Timer(lockDelay, () {
+        if (!mounted) return;
+        
+        setState(() {
+          final tempValues = List<int>.from(_game.diceValues);
+          tempValues[dieIndex] = _finalDiceValues[dieIndex];
+          _game = _game.copyWith(diceValues: tempValues);
+          _animatingDice.remove(dieIndex);
+          
+          // When all dice have locked, check for farkle
+          if (_animatingDice.isEmpty) {
+            _animationTimer?.cancel();
+            _animationTimer = null;
+            _isRolling = false;
+            
+            // Get values of rolled dice
+            final rolledValues = rollingIndices.map((i) => _game.diceValues[i]).toList();
+            
+            // Check if this is a farkle (no scoring dice)
+            final isFarkle = !FarkleScoring.hasScoring(rolledValues);
+            
+            _game = _game.copyWith(
+              rollsThisTurn: _game.rollsThisTurn + 1,
+              isFarkle: isFarkle,
+            );
+
+            if (isFarkle) {
+              _message = '💥 FARKLE! You lose ${_game.turnScore} points!';
+              Future.delayed(const Duration(seconds: 2), _endTurn);
+            } else {
+              _message = 'Select scoring dice to bank';
+            }
+          }
+        });
       });
-    });
+    }
   }
 
   void _toggleDiceSelection(int index) {
@@ -83,6 +139,10 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
 
     if (_game.isFarkle) {
       return; // Can't select after farkle
+    }
+
+    if (_game.rollsThisTurn == 0) {
+      return; // Can't select dice before rolling
     }
 
     setState(() {
@@ -142,6 +202,8 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
   }
 
   void _endTurn() {
+    final nextTurn = _game.currentTurn + 1;
+    
     if (_game.isFarkle) {
       // Farkle - lose turn score
       setState(() {
@@ -150,10 +212,16 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
           availableDice: [0, 1, 2, 3, 4, 5],
           selectedDice: [],
           rollsThisTurn: 0,
+          currentTurn: nextTurn,
           isFarkle: false,
         );
         _message = 'Turn ended. Roll to start new turn.';
       });
+      
+      // Check if max turns reached
+      if (nextTurn > FarkleGame.maxTurns) {
+        _handleGameOver();
+      }
     } else {
       // Bank the turn score
       final newTotal = _game.totalScore + _game.turnScore;
@@ -165,6 +233,7 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
           availableDice: [0, 1, 2, 3, 4, 5],
           selectedDice: [],
           rollsThisTurn: 0,
+          currentTurn: nextTurn,
         );
         _message = 'Score banked! Total: $newTotal';
       });
@@ -172,6 +241,10 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
       // Check if won
       if (newTotal >= 10000) {
         _handleGameWon();
+      }
+      // Check if max turns reached
+      else if (nextTurn > FarkleGame.maxTurns) {
+        _handleGameOver();
       }
     }
   }
@@ -187,20 +260,39 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
     if (user == null) {
       // Guest user - prompt to login to save score
       if (mounted) {
-        await _showGuestScoreDialog();
+        await _showGuestScoreDialog(isWin: true);
       }
     } else {
       // Logged in user - submit score directly
-      await _submitScoreAndShowDialog(user);
+      await _submitScoreAndShowDialog(user, isWin: true);
     }
   }
 
-  Future<void> _showGuestScoreDialog() async {
+  void _handleGameOver() async {
+    setState(() {
+      _gameOver = true;
+      _message = 'Game Over! Turn limit reached.\nFinal Score: ${_game.totalScore}';
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      // Guest user - prompt to login to save score
+      if (mounted) {
+        await _showGuestScoreDialog(isWin: false);
+      }
+    } else {
+      // Logged in user - submit score directly
+      await _submitScoreAndShowDialog(user, isWin: false);
+    }
+  }
+
+  Future<void> _showGuestScoreDialog({required bool isWin}) async {
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('🎉 Great Game!'),
+        title: Text(isWin ? '🎉 Great Game!' : '⏱️ Game Over'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -252,7 +344,9 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
               if (result == true && mounted) {
                 final user = FirebaseAuth.instance.currentUser;
                 if (user != null) {
-                  await _submitScoreAndShowDialog(user);
+                  // Determine if it was a win (score >= 10,000)
+                  final isWin = _game.totalScore >= 10000;
+                  await _submitScoreAndShowDialog(user, isWin: isWin);
                 }
               }
             },
@@ -263,7 +357,7 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
     );
   }
 
-  Future<void> _submitScoreAndShowDialog(User user) async {
+  Future<void> _submitScoreAndShowDialog(User user, {required bool isWin}) async {
     try {
       final username = await UserService.getCurrentUsername() ?? 'Anonymous';
       await FarkleService.submitScore(
@@ -321,12 +415,15 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
   }
 
   void _resetGame() {
+    _animationTimer?.cancel();
     setState(() {
       _game = FarkleGame(
         gameId: DateTime.now().millisecondsSinceEpoch.toString(),
       );
       _message = null;
       _gameOver = false;
+      _animatingDice.clear();
+      _finalDiceValues = List.filled(6, 0);
     });
   }
 
@@ -364,6 +461,8 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
                     children: [
                       _scoreCard('Total Score', _game.totalScore),
                       _scoreCard('Turn Score', _game.turnScore),
+                      _scoreCard('Turn', _game.currentTurn, 
+                        subtitle: '/ ${FarkleGame.maxTurns}'),
                     ],
                   ),
                   if (_message != null) ...[
@@ -400,37 +499,61 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
                   children: List.generate(6, (index) {
                     final isAvailable = _game.availableDice.contains(index);
                     final isSelected = _game.selectedDice.contains(index);
+                    final diceValue = _game.diceValues[index];
+                    final canSelect = isAvailable && _game.rollsThisTurn > 0 && !_game.isFarkle;
                     
                     return GestureDetector(
-                      onTap: () => _toggleDiceSelection(index),
-                      child: AnimatedContainer(
+                      onTap: canSelect ? () => _toggleDiceSelection(index) : null,
+                      child: AnimatedOpacity(
+                        opacity: canSelect ? 1.0 : 0.3,
                         duration: const Duration(milliseconds: 200),
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? DarkAcademiaColors.richCognac
-                              : isAvailable
-                                  ? DarkAcademiaColors.charcoalGray
-                                  : DarkAcademiaColors.navyBlue,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? DarkAcademiaColors.antiqueBrass
-                                : DarkAcademiaColors.cream.withValues(alpha: 0.3),
-                            width: isSelected ? 3 : 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            isAvailable ? '${_game.diceValues[index]}' : '✓',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: isAvailable
-                                  ? DarkAcademiaColors.cream
-                                  : DarkAcademiaColors.cream.withValues(alpha: 0.5),
+                                ? DarkAcademiaColors.richCognac.withValues(alpha: 0.3)
+                                : canSelect
+                                    ? Colors.transparent
+                                    : DarkAcademiaColors.charcoalGray.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? DarkAcademiaColors.antiqueBrass
+                                  : canSelect
+                                      ? DarkAcademiaColors.cream.withValues(alpha: 0.3)
+                                      : DarkAcademiaColors.cream.withValues(alpha: 0.1),
+                              width: isSelected ? 3 : 1,
                             ),
+                          ),
+                          child: Stack(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Image.asset(
+                                  'assets/images/dice-images/6.$diceValue.png',
+                                  fit: BoxFit.contain,
+                                  color: canSelect ? null : Colors.grey,
+                                  colorBlendMode: canSelect ? null : BlendMode.saturation,
+                                ),
+                              ),
+                              if (!isAvailable)
+                                Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: DarkAcademiaColors.charcoalGray.withValues(alpha: 0.8),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_circle,
+                                      size: 32,
+                                      color: DarkAcademiaColors.antiqueBrass,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -495,7 +618,7 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
     );
   }
 
-  Widget _scoreCard(String label, int value) {
+  Widget _scoreCard(String label, int value, {String? subtitle}) {
     return Column(
       children: [
         Text(
@@ -506,13 +629,32 @@ class _FarkleSinglePlayerScreenState extends State<FarkleSinglePlayerScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          value.toString(),
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: DarkAcademiaColors.antiqueBrass,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              value.toString(),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: DarkAcademiaColors.antiqueBrass,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: DarkAcademiaColors.cream.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     );

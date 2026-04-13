@@ -1,5 +1,7 @@
 /// Model for Farkle game state and scoring
 class FarkleGame {
+  static const int maxTurns = 20; // Turn limit to prevent infinite games
+  
   final String gameId;
   final List<int> availableDice; // Indices of dice not yet banked (0-5)
   final List<int> selectedDice; // Indices of dice selected this roll
@@ -7,6 +9,7 @@ class FarkleGame {
   final int turnScore; // Score accumulated this turn (not yet banked)
   final int totalScore; // Total banked score
   final int rollsThisTurn; // Number of rolls taken this turn
+  final int currentTurn; // Current turn number (1-20)
   final bool isFarkle; // Whether the last roll was a farkle
 
   const FarkleGame({
@@ -17,6 +20,7 @@ class FarkleGame {
     this.turnScore = 0,
     this.totalScore = 0,
     this.rollsThisTurn = 0,
+    this.currentTurn = 1,
     this.isFarkle = false,
   });
 
@@ -28,6 +32,7 @@ class FarkleGame {
     int? turnScore,
     int? totalScore,
     int? rollsThisTurn,
+    int? currentTurn,
     bool? isFarkle,
   }) {
     return FarkleGame(
@@ -38,6 +43,7 @@ class FarkleGame {
       turnScore: turnScore ?? this.turnScore,
       totalScore: totalScore ?? this.totalScore,
       rollsThisTurn: rollsThisTurn ?? this.rollsThisTurn,
+      currentTurn: currentTurn ?? this.currentTurn,
       isFarkle: isFarkle ?? this.isFarkle,
     );
   }
