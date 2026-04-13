@@ -6,7 +6,9 @@ import '../../services/username_generator.dart';
 import '../../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final int? pendingFarkleScore;
+  
+  const LoginScreen({super.key, this.pendingFarkleScore});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -65,7 +67,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showSignUpDialog() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const SignUpScreen(),
+        builder: (context) => SignUpScreen(
+          pendingFarkleScore: widget.pendingFarkleScore,
+        ),
       ),
     );
   }
@@ -263,7 +267,9 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+  final int? pendingFarkleScore;
+  
+  const SignUpScreen({super.key, this.pendingFarkleScore});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();

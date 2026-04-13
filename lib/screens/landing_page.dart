@@ -7,6 +7,7 @@ import './auth/login_screen.dart';
 import './games/dice_pool_config_screen.dart';
 import './games/my_games_screen.dart';
 import './games/browse_public_games_screen.dart';
+import './games/farkle/farkle_mode_screen.dart';
 import './moderator/moderator_screen.dart';
 import './settings/settings_screen.dart';
 import './social/friends_screen.dart';
@@ -523,7 +524,13 @@ class _GameListScreenState extends State<GameListScreen> {
               subtitle: 'Push your luck and accumulate points. Roll a 1 and '
                   'lose your turn\'s score!',
               icon: Icons.trending_up,
-              comingSoon: true,
+              onPlay: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const FarkleModeScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             _GameEntry(
