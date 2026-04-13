@@ -340,6 +340,18 @@ class _GameListScreenState extends State<GameListScreen> {
       appBar: AppBar(
         title: Text(widget.guest ? 'Games' : 'Game Library'),
         actions: [
+          // Community Games icon - available to all users
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const BrowsePublicGamesScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.public),
+            tooltip: 'Community Games',
+          ),
           if (!widget.guest) ...[
             IconButton(
               onPressed: () {
@@ -368,17 +380,6 @@ class _GameListScreenState extends State<GameListScreen> {
                 child: const Icon(Icons.people),
               ),
               tooltip: 'Friends',
-            ),
-            IconButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BrowsePublicGamesScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.public),
-              tooltip: 'Community Games',
             ),
             if (_isModerator && !_isCheckingModerator)
               IconButton(
@@ -437,31 +438,36 @@ class _GameListScreenState extends State<GameListScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Card(
-                color: DarkAcademiaColors.deepForestGreen.withValues(alpha: 0.15),
-                child: ListTile(
-                  leading: const Icon(
-                    Icons.public,
+            ],
+            // Community Games - available to all users (logged in or guest)
+            Card(
+              color: DarkAcademiaColors.deepForestGreen.withValues(alpha: 0.15),
+              child: ListTile(
+                leading: const Icon(
+                  Icons.public,
+                  color: DarkAcademiaColors.antiqueBrass,
+                ),
+                title: const Text(
+                  'Community Games',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
                     color: DarkAcademiaColors.antiqueBrass,
                   ),
-                  title: const Text(
-                    'Community Games',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: DarkAcademiaColors.antiqueBrass,
-                    ),
-                  ),
-                  subtitle: const Text('Browse and save public games from other players'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const BrowsePublicGamesScreen(),
-                      ),
-                    );
-                  },
                 ),
+                subtitle: Text(widget.guest 
+                    ? 'Browse public games from other players'
+                    : 'Browse and save public games from other players'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BrowsePublicGamesScreen(),
+                    ),
+                  );
+                },
               ),
+            ),
+            if (!widget.guest) ...[
               if (_isModerator && !_isCheckingModerator) ...[
                 const SizedBox(height: 12),
                 Card(
