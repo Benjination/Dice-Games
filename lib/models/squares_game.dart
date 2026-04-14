@@ -151,7 +151,7 @@ class SquaresGame {
       'yDieSides': yDieSides,
       'zDieSides': zDieSides,
       'gridContent': gridContent,
-      'layerLabels': layerLabels,
+      'layerLabels': layerLabels?.map((key, value) => MapEntry(key.toString(), value)),
       'lockOutMode': lockOutMode,
       'creatorUid': creatorUid,
       'creatorUsername': creatorUsername,

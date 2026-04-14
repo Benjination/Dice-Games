@@ -163,12 +163,23 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
   }
 
   void _markComplete() {
-    if (_currentCoordinateKey == null) return;
+    if (_rolledX == null || _rolledY == null) return;
     
     setState(() {
-      _game = _game.copyWith(
-        completedSquares: {..._game.completedSquares, _currentCoordinateKey!},
-      );
+      final newCompleted = {..._game.completedSquares};
+      
+      // Mark all layers complete for this x,y position
+      if (_is3DMode && _game.zDieSides != null) {
+        // Add all z-layers for this x,y
+        for (int z = 1; z <= _game.zDieSides!; z++) {
+          newCompleted.add(_makeKey(_rolledX!, _rolledY!, z));
+        }
+      } else {
+        // 2D mode - just add x,y
+        newCompleted.add(_makeKey(_rolledX!, _rolledY!));
+      }
+      
+      _game = _game.copyWith(completedSquares: newCompleted);
     });
     
     // Check if all filled squares are completed
