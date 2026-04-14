@@ -125,21 +125,39 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
 
   void _editSquare(int x, int y, [int? z]) {
     final key = _makeKey(x, y, z);
+    final hasContent = _gridContent.containsKey(key);
     final controller = TextEditingController(text: _gridContent[key] ?? '');
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(_is3DMode ? 'Square ($x, $y, $z)' : 'Square ($x, $y)'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Content',
-            hintText: 'Enter text for this square',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-          autofocus: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!hasContent)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Rule not set',
+                  style: TextStyle(
+                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Content',
+                hintText: 'Enter text for this square',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              autofocus: true,
+            ),
+          ],
         ),
         actions: [
           if (_gridContent.containsKey(key))
@@ -174,6 +192,9 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
   }
 
   void _editLayerLabel(int layer) {
+    // Set this as the current layer being viewed
+    setState(() => _currentLayer = layer);
+    
     final controller = TextEditingController(text: _layerLabels[layer] ?? 'Layer $layer');
     
     showDialog(
@@ -369,35 +390,62 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Current Layer: ',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                Expanded(
-                  child: DropdownButton<int>(
-                    value: _currentLayer,
-                    isExpanded: true,
-                    items: List.generate(_zDieSides!, (index) {
-                      final layer = index + 1;
-                      return DropdownMenuItem(
-                        value: layer,
-                        child: Text('$layer: ${_layerLabels[layer] ?? "Layer $layer"}'),
-                      );
-                    }),
-                    onChanged: (value) {
-                      setState(() => _currentLayer = value!);
-                    },
+            Text(
+              'Layers',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(_zDieSides!, (index) {
+                final layer = index + 1;
+                final isSelected = layer == _currentLayer;
+                return GestureDetector(
+                  onTap: () => _editLayerLabel(layer),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.3)
+                          : DarkAcademiaColors.charcoalGray.withValues(alpha: 0.3),
+                      border: Border.all(
+                        color: isSelected
+                            ? DarkAcademiaColors.antiqueBrass
+                            : DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.3),
+                        width: isSelected ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$layer: ${_layerLabels[layer] ?? "Layer $layer"}',
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.edit,
+                          size: 14,
+                          color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Edit layer label',
-                  onPressed: () => _editLayerLabel(_currentLayer),
-                ),
-              ],
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Viewing: ${_layerLabels[_currentLayer] ?? "Layer $_currentLayer"}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: DarkAcademiaColors.antiqueBrass,
+              ),
             ),
           ],
         ),
@@ -441,19 +489,22 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
   }
 
   Widget _buildGridDisplay() {
-    return AspectRatio(
-      aspectRatio: _xDieSides / _yDieSides,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _xDieSides,
-          childAspectRatio: 1,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-        ),
-        itemCount: _xDieSides * _yDieSides,
-        itemBuilder: (context, index) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
+        child: AspectRatio(
+          aspectRatio: _xDieSides / _yDieSides,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _xDieSides,
+              childAspectRatio: 1,
+              crossAxisSpacing: 2,
+              mainAxisSpacing: 2,
+            ),
+            itemCount: _xDieSides * _yDieSides,
+            itemBuilder: (context, index) {
           final x = (index % _xDieSides) + 1;
           final y = (index ~/ _xDieSides) + 1;
           final key = _makeKey(x, y, _is3DMode ? _currentLayer : null);
@@ -489,6 +540,8 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
             ),
           );
         },
+          ),
+        ),
       ),
     );
   }
