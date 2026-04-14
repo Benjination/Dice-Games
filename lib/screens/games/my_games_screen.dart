@@ -520,10 +520,23 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
               subtitle: const Text('Grid-based outcome game'),
               onTap: () {
                 Navigator.pop(context);
+                // Create a new blank Squares game
+                final newGame = SquaresGame(
+                  gameId: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: 'New Squares Game',
+                  description: 'Custom grid game',
+                  category: 'Custom',
+                  xDieSides: 6,
+                  yDieSides: 6,
+                  zDieSides: null, // 2D mode by default
+                  creatorUid: '',
+                  creatorUsername: '',
+                  createdAt: DateTime.now(),
+                );
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const SquaresBuilderScreen(),
+                    builder: (context) => SquaresPlayScreen(game: newGame),
                   ),
                 );
               },

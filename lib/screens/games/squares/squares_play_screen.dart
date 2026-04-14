@@ -1,7 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/squares_game.dart';
 import '../../../theme/dark_academia_theme.dart';
+import '../../../services/squares_service.dart';
+import '../../auth/login_screen.dart';
 
 /// Play screen for Squares grid game - roll dice and mark squares complete
 class SquaresPlayScreen extends StatefulWidget {
@@ -123,100 +126,8 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     
     // Always show popup when a square is rolled
     if (_rolledX != null && _rolledY != null) {
-      _showSquarePopup();
+      _showSquareEditDialog(_rolledX!, _rolledY!);
     }
-  }
-
-  void _showSquarePopup() {
-    // Get base content (always x,y)
-    final baseContent = _game.getSquareContent(_rolledX!, _rolledY!);
-    final hasContent = baseContent != null;
-    
-    // In 3D mode, combine with layer label
-    String displayContent = baseContent ?? '';
-    String? layerLabel;
-    if (_is3DMode && _rolledZ != null) {
-      layerLabel = _game.getLayerLabel(_rolledZ!);
-      if (layerLabel != null) {
-        if (hasContent) {
-          displayContent = '$baseContent $layerLabel';
-        } else {
-          displayContent = layerLabel;
-        }
-      }
-    }
-    
-    // Check if this x,y position is completed (all layers)
-    bool isCompleted = false;
-    if (_is3DMode && _game.zDieSides != null) {
-      isCompleted = List.generate(_game.zDieSides!, (i) => i + 1)
-          .every((z) => _game.isSquareCompleted(_rolledX!, _rolledY!, z));
-    } else {
-      isCompleted = _game.isSquareCompleted(_rolledX!, _rolledY!);
-    }
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          _is3DMode
-              ? 'Square ($_rolledX, $_rolledY, $_rolledZ)'
-              : 'Square ($_rolledX, $_rolledY)',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!hasContent)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Rule not set',
-                  style: TextStyle(
-                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            if (hasContent || (_is3DMode && layerLabel != null))
-              Text(
-                displayContent,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            if (isCompleted)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: DarkAcademiaColors.antiqueBrass,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Already completed'),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          if (!isCompleted)
-            FilledButton.icon(
-              onPressed: () {
-                _markComplete();
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.check),
-              label: const Text('Mark Complete'),
-            ),
-        ],
-      ),
-    );
   }
 
   void _markComplete() {
@@ -289,12 +200,451 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     );
   }
 
+  // Authentication helper
+  Future<bool> _checkAuthenticationAndProceed() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      final shouldLogin = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Login Required'),
+          content: const Text('You need to be logged in to save or publish games.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      );
+      
+      if (shouldLogin == true && mounted) {
+        final loggedIn = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+        return loggedIn == true;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  // Save game dialog
+  Future<void> _showSaveDialog() async {
+    final isAuthenticated = await _checkAuthenticationAndProceed();
+    if (!isAuthenticated || !mounted) return;
+
+    final nameController = TextEditingController(text: _game.name);
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Game'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Save this game configuration to your library.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Game Name',
+                border: OutlineInputBorder(),
+              ),
+              maxLength: 50,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      await _saveGame(nameController.text.trim());
+    }
+  }
+
+  // Publish game dialog
+  Future<void> _showPublishDialog() async {
+    final isAuthenticated = await _checkAuthenticationAndProceed();
+    if (!isAuthenticated || !mounted) return;
+
+    final nameController = TextEditingController(text: _game.name);
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Publish Game'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Publish this game for others to play. Your game will be reviewed by moderators before being made public.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Game Name',
+                border: OutlineInputBorder(),
+              ),
+              maxLength: 50,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Publish'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      await _publishGame(nameController.text.trim());
+    }
+  }
+
+  // Save game privately
+  Future<void> _saveGame(String name) async {
+    if (name.isEmpty) {
+      _showSnackBar('Please enter a game name');
+      return;
+    }
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      
+      final updatedGame = _game.copyWith(
+        name: name,
+        creatorUid: user.uid,
+        creatorUsername: user.displayName ?? 'Unknown',
+      );
+      await SquaresService.saveGame(updatedGame);
+
+      if (mounted) {
+        setState(() {
+          _game = updatedGame;
+        });
+        _showSnackBar('Game saved successfully!');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error saving game: $e');
+      }
+    }
+  }
+
+  // Publish game for moderation
+  Future<void> _publishGame(String name) async {
+    if (name.isEmpty) {
+      _showSnackBar('Please enter a game name');
+      return;
+    }
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      
+      final updatedGame = _game.copyWith(
+        name: name,
+        isPublic: true,
+        creatorUid: user.uid,
+        creatorUsername: user.displayName ?? 'Unknown',
+      );
+      await SquaresService.saveGame(updatedGame);
+
+      if (mounted) {
+        setState(() {
+          _game = updatedGame;
+        });
+        _showSnackBar('Game submitted for moderation!');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error publishing game: $e');
+      }
+    }
+  }
+
+  // Game settings dialog
+  Future<void> _showGameSettings() async {
+    final xController = TextEditingController(text: _game.xDieSides.toString());
+    final yController = TextEditingController(text: _game.yDieSides.toString());
+    final zController = TextEditingController(text: (_game.zDieSides ?? 6).toString());
+    bool is3D = _game.is3DMode;
+    bool lockOut = _game.lockOutMode;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Game Settings'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: xController,
+                  decoration: const InputDecoration(
+                    labelText: 'X Die Sides',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: yController,
+                  decoration: const InputDecoration(
+                    labelText: 'Y Die Sides',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  title: const Text('3D Mode'),
+                  subtitle: const Text('Add a third dimension (Z)'),
+                  value: is3D,
+                  onChanged: (value) {
+                    setDialogState(() => is3D = value);
+                  },
+                ),
+                if (is3D) ...[
+                  TextField(
+                    controller: zController,
+                    decoration: const InputDecoration(
+                      labelText: 'Z Die Sides',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                SwitchListTile(
+                  title: const Text('Lock-Out Mode'),
+                  subtitle: const Text('Completed squares cannot be rolled again'),
+                  value: lockOut,
+                  onChanged: (value) {
+                    setDialogState(() => lockOut = value);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context, {
+                  'xDieSides': int.tryParse(xController.text) ?? 6,
+                  'yDieSides': int.tryParse(yController.text) ?? 6,
+                  'is3DMode': is3D,
+                  'zDieSides': is3D ? (int.tryParse(zController.text) ?? 6) : null,
+                  'lockOutMode': lockOut,
+                });
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _game = _game.copyWith(
+          xDieSides: result['xDieSides'],
+          yDieSides: result['yDieSides'],
+          zDieSides: result['zDieSides'],
+          lockOutMode: result['lockOutMode'],
+        );
+      });
+    }
+  }
+
+  // Show square edit dialog (triggered by clicking grid or dice rolling)
+  Future<void> _showSquareEditDialog(int x, int y) async {
+    final baseContent = _game.getSquareContent(x, y) ?? '';
+    final contentController = TextEditingController(text: baseContent);
+    
+    // Get layer label if in 3D mode and we have a current Z roll
+    String? layerLabel;
+    String displayContent = baseContent;
+    if (_is3DMode && _rolledZ != null) {
+      layerLabel = _game.getLayerLabel(_rolledZ!);
+      if (baseContent.isNotEmpty) {
+        displayContent = layerLabel != null ? '$baseContent $layerLabel' : baseContent;
+      } else if (layerLabel != null) {
+        displayContent = layerLabel;
+      }
+    }
+    
+    // Check if completed
+    bool isCompleted = false;
+    if (_is3DMode && _game.zDieSides != null) {
+      isCompleted = List.generate(_game.zDieSides!, (i) => i + 1)
+          .every((z) => _game.isSquareCompleted(x, y, z));
+    } else {
+      isCompleted = _game.isSquareCompleted(x, y);
+    }
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          _is3DMode
+              ? 'Square ($x, $y${_rolledZ != null ? ', $_rolledZ' : ''})'
+              : 'Square ($x, $y)',
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (baseContent.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Rule not set',
+                    style: TextStyle(
+                      color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              if (baseContent.isNotEmpty || (_is3DMode && layerLabel != null))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    displayContent,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
+              if (isCompleted)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: DarkAcademiaColors.antiqueBrass,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Already completed'),
+                    ],
+                  ),
+                ),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text(
+                'Edit Rule:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: contentController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter rule for this square',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                maxLength: 200,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              final newContent = contentController.text.trim();
+              setState(() {
+                final newGridContent = Map<String, String>.from(_game.gridContent);
+                final key = '$x,$y';
+                if (newContent.isEmpty) {
+                  newGridContent.remove(key);
+                } else {
+                  newGridContent[key] = newContent;
+                }
+                _game = _game.copyWith(gridContent: newGridContent);
+              });
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.save),
+            label: const Text('Save'),
+          ),
+          if (!isCompleted && (_rolledX == x && _rolledY == y))
+            FilledButton.icon(
+              onPressed: () {
+                _markComplete();
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.check),
+              label: const Text('Mark Complete'),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_game.name),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Game Settings',
+            onPressed: _showGameSettings,
+          ),
+          IconButton(
+            icon: const Icon(Icons.save),
+            tooltip: 'Save Game',
+            onPressed: _showSaveDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.publish),
+            tooltip: 'Publish Game',
+            onPressed: _showPublishDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'Game Info',
@@ -488,25 +838,7 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
               final isCurrentRoll = (_rolledX == x && _rolledY == y);
               
               return GestureDetector(
-                onTap: isFilled ? () {
-                  // Get base content (no layer modifier when tapping grid)
-                  final baseContent = _game.getSquareContent(x, y);
-                  if (baseContent != null) {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text('Square ($x, $y)'),
-                        content: Text(baseContent),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Close'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                } : null,
+                onTap: () => _showSquareEditDialog(x, y),
                 child: Container(
                   decoration: BoxDecoration(
                     color: isCompleted

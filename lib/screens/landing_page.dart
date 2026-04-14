@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/dark_academia_theme.dart';
 import '../../services/user_service.dart';
 import '../../services/friends_service.dart';
@@ -10,6 +9,8 @@ import './games/browse_public_games_screen.dart';
 import './games/farkle/farkle_mode_screen.dart';
 import './games/pig/pig_mode_screen.dart';
 import './games/dice_poker/dice_poker_mode_screen.dart';
+import './games/squares/squares_play_screen.dart';
+import '../models/squares_game.dart';
 
 import './moderator/moderator_screen.dart';
 import './settings/settings_screen.dart';
@@ -570,10 +571,22 @@ class _GameListScreenState extends State<GameListScreen> {
                   'Perfect for workouts, date nights, or any activity!',
               icon: Icons.grid_on,
               onPlay: () {
-                // Navigate to My Games tab where Squares games are shown
+                // Create a new blank Squares game
+                final newGame = SquaresGame(
+                  gameId: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: 'New Squares Game',
+                  description: 'Custom grid game',
+                  category: 'Custom',
+                  xDieSides: 6,
+                  yDieSides: 6,
+                  zDieSides: null, // 2D mode by default
+                  creatorUid: '',
+                  creatorUsername: '',
+                  createdAt: DateTime.now(),
+                );
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const MyGamesScreen(),
+                    builder: (_) => SquaresPlayScreen(game: newGame),
                   ),
                 );
               },
