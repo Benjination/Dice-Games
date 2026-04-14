@@ -163,18 +163,33 @@ class SquaresService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Must be authenticated');
 
-    // Get the game from main collection
-    final gameDoc = await _gamesCollection.doc(gameId).get();
+    // Try to get the game from user's shared collection first
+    final sharedDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('shared_squares')
+        .doc(gameId)
+        .get();
 
-    if (!gameDoc.exists) {
-      throw Exception('Game not found');
-    }
+    Map<String, dynamic>? gameData;
 
-    final gameData = Map<String, dynamic>.from(gameDoc.data() as Map<String, dynamic>);
-
-    // Verify user is the creator
-    if (gameData['creatorUid'] != user.uid) {
-      throw Exception('Only the creator can share this game');
+    if (sharedDoc.exists) {
+      // User has this as a shared game
+      gameData = Map<String, dynamic>.from(sharedDoc.data() as Map<String, dynamic>);
+    } else {
+      // Try main collection (user-owned game)
+      final gameDoc = await _gamesCollection.doc(gameId).get();
+      
+      if (!gameDoc.exists) {
+        throw Exception('Game not found');
+      }
+      
+      gameData = Map<String, dynamic>.from(gameDoc.data() as Map<String, dynamic>);
+      
+      // Verify user is the creator for owned games
+      if (gameData['creatorUid'] != user.uid) {
+        throw Exception('Game not found in your collection');
+      }
     }
 
     // Handle name conflicts

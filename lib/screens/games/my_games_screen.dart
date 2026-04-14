@@ -92,15 +92,6 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
   }
 
   Future<void> _shareSquaresGame(SquaresGame game) async {
-    // Only the creator can share a game
-    final user = FirebaseAuth.instance.currentUser;
-    if (game.creatorUid != user?.uid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only the creator can share this game')),
-      );
-      return;
-    }
-
     // Get list of friends
     try {
       final friends = await FriendsService.getFriends();
@@ -270,15 +261,6 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
     if (game.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot share unsaved game')),
-      );
-      return;
-    }
-
-    // Only the creator can share a game
-    final user = FirebaseAuth.instance.currentUser;
-    if (game.creatorUid != user?.uid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only the creator can share this game')),
       );
       return;
     }
@@ -587,11 +569,10 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
             }
           },
           itemBuilder: (context) => [
-            if (isCreator)
-              const PopupMenuItem(
-                value: 'share',
-                child: Text('Share with Friend'),
-              ),
+            const PopupMenuItem(
+              value: 'share',
+              child: Text('Share with Friend'),
+            ),
             const PopupMenuItem(
               value: 'edit',
               child: Text('Edit'),
@@ -660,11 +641,10 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
             }
           },
           itemBuilder: (context) => [
-            if (game.creatorUid == FirebaseAuth.instance.currentUser?.uid)
-              const PopupMenuItem(
-                value: 'share',
-                child: Text('Share with Friend'),
-              ),
+            const PopupMenuItem(
+              value: 'share',
+              child: Text('Share with Friend'),
+            ),
             const PopupMenuItem(
               value: 'delete',
               child: Text('Delete'),

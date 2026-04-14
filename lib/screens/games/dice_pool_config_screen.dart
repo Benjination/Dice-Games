@@ -401,89 +401,168 @@ class _DieConfigRowState extends State<_DieConfigRow> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        child: Row(
-          children: [
-            // Label input
-            SizedBox(
-              width: 200,
-              child: TextField(
-                controller: _labelController,
-                focusNode: _focusNode,
-                textAlign: TextAlign.center,
-                maxLength: 30,
-                style: const TextStyle(
-                  color: DarkAcademiaColors.antiqueBrass,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-                decoration: InputDecoration(
-                  counterText: '',
-                  labelText: 'Die Name',
-                  labelStyle: TextStyle(
-                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
-                    fontSize: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
+        child: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Label input
+                  TextField(
+                    controller: _labelController,
+                    focusNode: _focusNode,
+                    textAlign: TextAlign.center,
+                    maxLength: 30,
+                    style: const TextStyle(
                       color: DarkAcademiaColors.antiqueBrass,
-                      width: 2,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      labelText: 'Die Name',
+                      labelStyle: TextStyle(
+                        color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                        fontSize: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                          color: DarkAcademiaColors.antiqueBrass,
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      filled: true,
+                      fillColor: DarkAcademiaColors.charcoalGray,
+                    ),
+                    onChanged: _updateLabel,
+                  ),
+                  const SizedBox(height: 12),
+                  // Sides dropdown
+                  DropdownButtonFormField<int>(
+                    initialValue: widget.die.sides,
+                    decoration: const InputDecoration(
+                      labelText: 'Faces',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    items: widget.availableSides
+                        .map(
+                          (sides) => DropdownMenuItem(
+                            value: sides,
+                            child: Text('d$sides ($sides faces)'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) widget.onSidesChanged(value);
+                    },
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  // Label input
+                  SizedBox(
+                    width: 200,
+                    child: TextField(
+                      controller: _labelController,
+                      focusNode: _focusNode,
+                      textAlign: TextAlign.center,
+                      maxLength: 30,
+                      style: const TextStyle(
+                        color: DarkAcademiaColors.antiqueBrass,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                      ),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        labelText: 'Die Name',
+                        labelStyle: TextStyle(
+                          color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                          fontSize: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: DarkAcademiaColors.antiqueBrass,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        filled: true,
+                        fillColor: DarkAcademiaColors.charcoalGray,
+                      ),
+                      onChanged: _updateLabel,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  filled: true,
-                  fillColor: DarkAcademiaColors.charcoalGray,
-                ),
-                onChanged: _updateLabel,
-              ),
-            ),
-            const SizedBox(width: 16),
-            // Sides dropdown
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: widget.die.sides,
-                decoration: const InputDecoration(
-                  labelText: 'Faces',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                items: widget.availableSides
-                    .map(
-                      (sides) => DropdownMenuItem(
-                        value: sides,
-                        child: Text('d$sides ($sides faces)'),
+                  const SizedBox(width: 16),
+                  // Sides dropdown
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: widget.die.sides,
+                      decoration: const InputDecoration(
+                        labelText: 'Faces',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) widget.onSidesChanged(value);
-                },
+                      items: widget.availableSides
+                          .map(
+                            (sides) => DropdownMenuItem(
+                              value: sides,
+                              child: Text('d$sides ($sides faces)'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) widget.onSidesChanged(value);
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
