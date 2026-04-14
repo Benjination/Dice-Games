@@ -10,6 +10,7 @@ import './games/browse_public_games_screen.dart';
 import './games/farkle/farkle_mode_screen.dart';
 import './games/pig/pig_mode_screen.dart';
 import './games/dice_poker/dice_poker_mode_screen.dart';
+import './games/squares/squares_builder_screen.dart';
 import './moderator/moderator_screen.dart';
 import './settings/settings_screen.dart';
 import './social/friends_screen.dart';
@@ -558,6 +559,20 @@ class _GameListScreenState extends State<GameListScreen> {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const DicePokerModeScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _GameEntry(
+              title: 'Squares',
+              subtitle: 'Create custom grid games with dice rolls. '
+                  'Perfect for workouts, date nights, or any activity!',
+              icon: Icons.grid_on,
+              onPlay: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SquaresBuilderScreen(),
                   ),
                 );
               },
