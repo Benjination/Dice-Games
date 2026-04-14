@@ -361,6 +361,14 @@ class SquaresService {
     await _pendingGamesCollection.doc(gameId).delete();
   }
 
+  /// Load all pending games (moderators only)
+  static Future<List<SquaresGame>> loadPendingGames() async {
+    final snapshot = await _pendingGamesCollection.get();
+    return snapshot.docs
+        .map((doc) => SquaresGame.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Get unique categories from all public games
   static Future<List<String>> getCategories() async {
     final snapshot = await _gamesCollection
