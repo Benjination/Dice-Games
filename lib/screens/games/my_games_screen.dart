@@ -91,6 +91,127 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
     );
   }
 
+  Future<void> _shareSquaresGame(SquaresGame game) async {
+    // Only the creator can share a game
+    final user = FirebaseAuth.instance.currentUser;
+    if (game.creatorUid != user?.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only the creator can share this game')),
+      );
+      return;
+    }
+
+    // Get list of friends
+    try {
+      final friends = await FriendsService.getFriends();
+      if (!mounted) return;
+
+      if (friends.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No friends to share with')),
+        );
+        return;
+      }
+
+      // Show friend selection dialog
+      String? selectedFriendUid;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Share Game'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              itemCount: friends.length,
+              itemBuilder: (context, index) {
+                final friend = friends[index];
+                return ListTile(
+                  title: Text(friend['username'] ?? 'Unknown'),
+                  onTap: () {
+                    selectedFriendUid = friend['uid'];
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+
+      if (selectedFriendUid != null) {
+        try {
+          // Check for name conflicts
+          final hasConflict = await SquaresService.checkNameConflict(
+            selectedFriendUid!,
+            game.name,
+          );
+
+          if (hasConflict && mounted) {
+            // Show replace/keep both dialog
+            final action = await showDialog<String>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Game Name Conflict'),
+                content: Text(
+                  'Your friend already has a game named "${game.name}". What would you like to do?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'cancel'),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'replace'),
+                    child: const Text('Replace'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, 'keep_both'),
+                    child: const Text('Keep Both'),
+                  ),
+                ],
+              ),
+            );
+
+            if (action == null || action == 'cancel') return;
+
+            await SquaresService.shareSquaresGameWithFriend(
+              game.gameId,
+              selectedFriendUid!,
+              conflictAction: action,
+            );
+          } else {
+            await SquaresService.shareSquaresGameWithFriend(
+              game.gameId,
+              selectedFriendUid!,
+            );
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Game shared successfully!')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error sharing game: $e')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading friends: $e')),
+      );
+    }
+  }
+
 
   Future<void> _deleteGame(SavedGame game) async {
     final confirmed = await showDialog<bool>(
@@ -141,6 +262,15 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
           gameName: game.name,
           generalRules: game.generalRules,
         ),
+      ),
+    );
+  }
+
+  void _editGame(SavedGame game) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DicePoolConfigScreen(existingGame: game),
       ),
     );
   }
@@ -207,7 +337,52 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
 
       if (selectedFriendUid != null) {
         try {
-          await GameService.shareGameWithFriend(game.id!, selectedFriendUid!);
+          // Check for name conflicts
+          final hasConflict = await GameService.checkNameConflict(
+            selectedFriendUid!,
+            game.name,
+          );
+
+          if (hasConflict && mounted) {
+            // Show replace/keep both dialog
+            final action = await showDialog<String>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Game Name Conflict'),
+                content: Text(
+                  'Your friend already has a game named "${game.name}". What would you like to do?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'cancel'),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'replace'),
+                    child: const Text('Replace'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, 'keep_both'),
+                    child: const Text('Keep Both'),
+                  ),
+                ],
+              ),
+            );
+
+            if (action == null || action == 'cancel') return;
+
+            await GameService.shareGameWithFriend(
+              game.id!,
+              selectedFriendUid!,
+              conflictAction: action,
+            );
+          } else {
+            await GameService.shareGameWithFriend(
+              game.id!,
+              selectedFriendUid!,
+            );
+          }
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Game shared successfully!')),
@@ -369,6 +544,9 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
   }
 
   Widget _buildSquaresCard(SquaresGame game) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isCreator = game.creatorUid == user?.uid;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -397,17 +575,32 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                   fontSize: 12,
                 ),
               ),
+            if (game.isShared)
+              Text(
+                'Shared by friend',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
           ],
         ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
-            if (value == 'edit') {
+            if (value == 'share') {
+              _shareSquaresGame(game);
+            } else if (value == 'edit') {
               _editSquaresGame(game);
             } else if (value == 'delete') {
               _deleteSquaresGame(game);
             }
           },
           itemBuilder: (context) => [
+            if (isCreator)
+              const PopupMenuItem(
+                value: 'share',
+                child: Text('Share with Friend'),
+              ),
             const PopupMenuItem(
               value: 'edit',
               child: Text('Edit'),
@@ -459,7 +652,7 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
               ),
             if (game.isShared)
               Text(
-                'Shared by friend • Cannot edit/publish',
+                'Shared by friend',
                 style: TextStyle(
                   color: Colors.grey[400],
                   fontSize: 12,
@@ -473,6 +666,8 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
               _deleteGame(game);
             } else if (value == 'share') {
               _shareGame(game);
+            } else if (value == 'edit') {
+              _editGame(game);
             }
           },
           itemBuilder: (context) => [
@@ -481,11 +676,14 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                 value: 'share',
                 child: Text('Share with Friend'),
               ),
-            if (game.creatorUid == FirebaseAuth.instance.currentUser?.uid)
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete'),
-              ),
+            const PopupMenuItem(
+              value: 'edit',
+              child: Text('Edit'),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Text('Delete'),
+            ),
           ],
         ),
         onTap: () => _playGame(game),

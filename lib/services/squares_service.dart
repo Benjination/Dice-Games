@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/squares_game.dart';
@@ -19,6 +20,22 @@ class SquaresService {
 
     final data = game.toFirestore();
     
+    // Check if this is a shared game being edited
+    if (game.isShared) {
+      // Shared games can only be saved privately to the user's shared_squares collection
+      // They cannot be made public
+      if (game.isPublic) {
+        throw Exception('Cannot publish shared games - create your own copy first');
+      }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('shared_squares')
+          .doc(game.gameId)
+          .set(data);
+      return;
+    }
+    
     if (game.isPublic) {
       // Public games go to pending for moderation
       await _pendingGamesCollection.doc(game.gameId).set(data);
@@ -32,9 +49,27 @@ class SquaresService {
   static Future<void> updateGame(SquaresGame game) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Must be authenticated to update games');
-    if (user.uid != game.creatorUid) throw Exception('Unauthorized');
 
     final data = game.toFirestore();
+    
+    // Check if this is a shared game
+    if (game.isShared) {
+      // Shared games can only be updated in the user's shared_squares collection
+      // They cannot be made public
+      if (game.isPublic) {
+        throw Exception('Cannot publish shared games - create your own copy first');
+      }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('shared_squares')
+          .doc(game.gameId)
+          .set(data);
+      return;
+    }
+
+    // For owned games, verify user is the creator
+    if (user.uid != game.creatorUid) throw Exception('Unauthorized');
     
     if (game.isPublic) {
       // If changing to public, move to pending
@@ -51,7 +86,7 @@ class SquaresService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Must be authenticated');
 
-    // Check both collections
+    // Check main collections (owned games)
     final gameDoc = await _gamesCollection.doc(gameId).get();
     final pendingDoc = await _pendingGamesCollection.doc(gameId).get();
 
@@ -59,19 +94,126 @@ class SquaresService {
       final game = SquaresGame.fromFirestore(gameDoc.id, gameDoc.data() as Map<String, dynamic>);
       if (game.creatorUid != user.uid) throw Exception('Unauthorized');
       await _gamesCollection.doc(gameId).delete();
+      return;
     } else if (pendingDoc.exists) {
       final game = SquaresGame.fromFirestore(pendingDoc.id, pendingDoc.data() as Map<String, dynamic>);
       if (game.creatorUid != user.uid) throw Exception('Unauthorized');
       await _pendingGamesCollection.doc(gameId).delete();
+      return;
     }
+
+    // Check shared_squares collection (shared games)
+    final sharedDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('shared_squares')
+        .doc(gameId)
+        .get();
+
+    if (sharedDoc.exists) {
+      await sharedDoc.reference.delete();
+      return;
+    }
+
+    throw Exception('Game not found');
   }
 
-  /// Get current user's games (both private and approved public)
+  /// Check if a friend already has a game with this name
+  static Future<bool> checkNameConflict(String friendUid, String gameName) async {
+    // Check owned games
+    final ownedGames = await _gamesCollection
+        .where('creatorUid', isEqualTo: friendUid)
+        .where('name', isEqualTo: gameName)
+        .limit(1)
+        .get();
+
+    if (ownedGames.docs.isNotEmpty) return true;
+
+    // Check shared games
+    final sharedGames = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(friendUid)
+        .collection('shared_squares')
+        .where('name', isEqualTo: gameName)
+        .limit(1)
+        .get();
+
+    return sharedGames.docs.isNotEmpty;
+  }
+
+  /// Generate a unique numbered name if there's a conflict
+  static Future<String> _generateNumberedName(String friendUid, String baseName) async {
+    int counter = 1;
+    String newName = '$baseName ($counter)';
+
+    while (await checkNameConflict(friendUid, newName)) {
+      counter++;
+      newName = '$baseName ($counter)';
+    }
+
+    return newName;
+  }
+
+  /// Share a Squares game with a friend
+  static Future<void> shareSquaresGameWithFriend(
+    String gameId,
+    String friendUid, {
+    String? conflictAction,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('Must be authenticated');
+
+    // Get the game from main collection
+    final gameDoc = await _gamesCollection.doc(gameId).get();
+
+    if (!gameDoc.exists) {
+      throw Exception('Game not found');
+    }
+
+    final gameData = Map<String, dynamic>.from(gameDoc.data() as Map<String, dynamic>);
+
+    // Verify user is the creator
+    if (gameData['creatorUid'] != user.uid) {
+      throw Exception('Only the creator can share this game');
+    }
+
+    // Handle name conflicts
+    if (conflictAction == 'replace') {
+      // Delete existing game(s) with same name
+      final existingGames = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(friendUid)
+          .collection('shared_squares')
+          .where('name', isEqualTo: gameData['name'])
+          .get();
+
+      for (var doc in existingGames.docs) {
+        await doc.reference.delete();
+      }
+    } else if (conflictAction == 'keep_both') {
+      // Generate numbered name
+      gameData['name'] = await _generateNumberedName(friendUid, gameData['name'] as String);
+    }
+
+    // Create a shared copy for the friend
+    gameData['sharedBy'] = user.uid;
+
+    // Save to friend's shared_squares collection
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(friendUid)
+        .collection('shared_squares')
+        .doc(gameId)
+        .set(gameData);
+  }
+
+  /// Get current user's games (both owned and shared)
   static Stream<List<SquaresGame>> getMyGames() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return Stream.value([]);
 
-    return _gamesCollection
+    // Stream of owned games
+    final ownedGamesStream = _gamesCollection
         .where('creatorUid', isEqualTo: user.uid)
         .snapshots()
         .map((snapshot) {
@@ -79,6 +221,47 @@ class SquaresService {
               .map((doc) => SquaresGame.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
               .toList();
         });
+
+    // Stream of shared games
+    final sharedGamesStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('shared_squares')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => SquaresGame.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
+              .toList();
+        });
+
+    // Combine both streams using async* generator
+    return _combineGameStreams(ownedGamesStream, sharedGamesStream);
+  }
+
+  /// Helper to combine owned and shared game streams
+  static Stream<List<SquaresGame>> _combineGameStreams(
+    Stream<List<SquaresGame>> owned,
+    Stream<List<SquaresGame>> shared,
+  ) {
+    final controller = StreamController<List<SquaresGame>>();
+    List<SquaresGame> ownedGames = [];
+    List<SquaresGame> sharedGames = [];
+
+    void emitCombined() {
+      controller.add([...ownedGames, ...sharedGames]);
+    }
+
+    owned.listen((games) {
+      ownedGames = games;
+      emitCombined();
+    });
+
+    shared.listen((games) {
+      sharedGames = games;
+      emitCombined();
+    });
+
+    return controller.stream;
   }
 
   /// Get current user's pending submissions

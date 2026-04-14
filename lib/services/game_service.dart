@@ -326,10 +326,37 @@ class GameService {
   /// If the game is public, it goes to their publicGames (saved by user)
   /// If the game is private, it goes to their private games
   /// In either case, the receiver cannot publish it (creator only)
+  /// Check if a friend already has a game with this name
+  static Future<bool> checkNameConflict(String friendUid, String gameName) async {
+    final games = await _firestore
+        .collection('users')
+        .doc(friendUid)
+        .collection('games')
+        .where('name', isEqualTo: gameName)
+        .limit(1)
+        .get();
+
+    return games.docs.isNotEmpty;
+  }
+
+  /// Generate a unique numbered name if there's a conflict
+  static Future<String> _generateNumberedName(String friendUid, String baseName) async {
+    int counter = 1;
+    String newName = '$baseName ($counter)';
+
+    while (await checkNameConflict(friendUid, newName)) {
+      counter++;
+      newName = '$baseName ($counter)';
+    }
+
+    return newName;
+  }
+
   static Future<void> shareGameWithFriend(
     String gameId,
-    String friendUid,
-  ) async {
+    String friendUid, {
+    String? conflictAction,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -345,11 +372,29 @@ class GameService {
       throw Exception('Game not found');
     }
 
-    final gameData = gameDoc.data()!;
+    final gameData = Map<String, dynamic>.from(gameDoc.data()!);
+    final now = DateTime.now().toIso8601String();
+
+    // Handle name conflicts
+    if (conflictAction == 'replace') {
+      // Delete existing game(s) with same name
+      final existingGames = await _firestore
+          .collection('users')
+          .doc(friendUid)
+          .collection('games')
+          .where('name', isEqualTo: gameData['name'])
+          .get();
+
+      for (var doc in existingGames.docs) {
+        await doc.reference.delete();
+      }
+    } else if (conflictAction == 'keep_both') {
+      // Generate numbered name
+      gameData['name'] = await _generateNumberedName(friendUid, gameData['name'] as String);
+    }
 
     // Create a shared copy for the friend
     final newDocId = _firestore.collection('users').doc().id;
-    final now = DateTime.now().toIso8601String();
 
     // Add sharedBy field to track who shared it
     gameData['id'] = newDocId;

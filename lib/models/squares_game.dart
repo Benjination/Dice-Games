@@ -34,6 +34,7 @@ class SquaresGame {
   final String creatorUsername;
   final DateTime createdAt;
   final bool isPublic;
+  final String? sharedBy; // UID of user who shared this game (if applicable)
 
   const SquaresGame({
     required this.gameId,
@@ -51,10 +52,14 @@ class SquaresGame {
     required this.creatorUsername,
     required this.createdAt,
     this.isPublic = false,
+    this.sharedBy,
   });
 
   /// Check if game is in 3D mode
   bool get is3DMode => zDieSides != null;
+
+  /// Returns true if this is a shared game (received from a friend)
+  bool get isShared => sharedBy != null;
 
   /// Get total number of unique square positions (always 2D)
   int get totalSquares => xDieSides * yDieSides;
@@ -121,6 +126,7 @@ class SquaresGame {
     String? creatorUsername,
     DateTime? createdAt,
     bool? isPublic,
+    String? sharedBy,
   }) {
     return SquaresGame(
       gameId: gameId ?? this.gameId,
@@ -138,6 +144,7 @@ class SquaresGame {
       creatorUsername: creatorUsername ?? this.creatorUsername,
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
+      sharedBy: sharedBy ?? this.sharedBy,
     );
   }
 
@@ -157,6 +164,7 @@ class SquaresGame {
       'creatorUsername': creatorUsername,
       'createdAt': Timestamp.fromDate(createdAt),
       'isPublic': isPublic,
+      if (sharedBy != null) 'sharedBy': sharedBy,
     };
   }
 
@@ -183,6 +191,7 @@ class SquaresGame {
       creatorUsername: data['creatorUsername'] as String,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       isPublic: data['isPublic'] as bool? ?? false,
+      sharedBy: data['sharedBy'] as String?,
       completedSquares: {}, // Not persisted - session only
     );
   }
