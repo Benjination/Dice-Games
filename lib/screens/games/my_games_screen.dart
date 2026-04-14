@@ -7,7 +7,7 @@ import '../../services/game_service.dart';
 import '../../services/squares_service.dart';
 import '../../services/friends_service.dart';
 import '../../theme/dark_academia_theme.dart';
-import 'dice_builder_screen.dart';
+import 'dice_pool_config_screen.dart';
 import 'dice_pool_screen.dart';
 import 'squares/squares_builder_screen.dart';
 import 'squares/squares_play_screen.dart';
@@ -121,7 +121,6 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Game deleted')),
           );
-          _loadGames();
         }
       } catch (e) {
         if (mounted) {
@@ -510,7 +509,7 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const DiceBuilderScreen(),
+                    builder: (context) => const DicePoolConfigScreen(),
                   ),
                 );
               },
