@@ -1,8 +1,10 @@
 # Roll Tavern
 
-A cozy collection of classic dice games built with Flutter and Firebase. Play Farkle, Pig Dice, and Dice Poker with friends.
+A cozy collection of classic dice games built with Flutter and Firebase.
 
-Website: https://roll-tavern.com
+**Website**: https://roll-tavern.com
+
+---
 
 ## 🎲 Features
 
@@ -53,14 +55,8 @@ Website: https://roll-tavern.com
 - **My Games**: View and replay all your saved games
 - **Username regeneration**: Change your randomly generated username anytime
 - **Community Games**: Browse and save public games created by other players
-
-### Moderation
-- **Moderation system**: Approve/reject pending public games (moderators only)
+Dice Pool and Squares games
 - **Firebase Custom Claims**: Role-based access control for moderators
-- See [MODERATOR_SETUP.md](MODERATOR_SETUP.md) for setup instructions
-
-### Coming Soon
-- Farkle
 - Pig Dice
 - Dice Poker
 
@@ -85,48 +81,13 @@ Roll Tavern works as a Progressive Web App (PWA) - install it on your phone for 
 
 **See: [PWA_INSTALL.md](PWA_INSTALL.md) for detailed installation instructions**
 
-Quick install:
+Quick install:as PWA
+
+Roll Tavern works as a Progressive Web App - install it for a native app experience:
+
 - **iOS**: Open in Safari → Share → Add to Home Screen
 - **Android**: Open in Chrome → Menu → Install App
-
-### Local Development
-```bash
-# Clone the repository
-git clone https://github.com/[username]/Roll-Tavern.git
-cd Roll-Tavern
-
-# Install dependencies
-flutter pub get
-
-# Run on Chrome (web)
-flutter run -d chrome
-
-# Run on your device
-flutter run
-```
-
-### Build for Production
-```bash
-# Web
-flutter build web --release
-
-# Android
-flutter build apk --release
-
-# iOS
-flutter build ios --release
-
-# Desktop
-flutter build macos --release
-flutter build windows --release
-flutter build linux --release
-```
-
----
-
-## 🌐 Deployment
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+- **Desktop**: Click install icon in address bar [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 
 **Quick Deploy to Firebase Hosting:**
 ```bash
@@ -167,13 +128,13 @@ lib/
 
 ## 🔧 Configuration
 
-### Firebase Setup
-1. Create a Firebase project at https://console.firebase.google.com/
-2. Enable Authentication (Email, Google, Phone)
-3. Enable Firestore Database
-4. Run `flutterfire configure` to generate firebase_options.dart
-5. Update Firestore security rules (see [DEPLOYMENT.md](DEPLOYMENT.md))
+**Deploy to Firebase Hosting:**
+```bash
+flutter build web --release
+firebase deploy --only hosting
+```
 
+Live at: https://dice-games-6a9ab.web.app
 ### Environment Variables
 No environment variables needed - Firebase configuration is in `lib/firebase_options.dart`
 
@@ -203,8 +164,36 @@ This project is licensed under the MIT License.
 - Firebase for backend services
 - Dark Academia aesthetic inspiration
 
+---Project: dice-games-6a9ab
+2. Authentication enabled: Email, Google, Phone
+3. Firestore Database configured
+4. Security rules deployed via `firestore.rules`
+
 ---
 
-## 📞 Contact
+## 👨‍💼 Moderator Setup
 
-Questions or suggestions? Open an issue on GitHub!
+Moderators can approve/reject public games. Set moderator status using Firebase Admin SDK:
+
+```javascript
+// Cloud Function or Node.js script
+const admin = require('firebase-admin');
+await admin.auth().setCustomUserClaims(uid, { moderator: true });
+```
+
+After assigning, users must log out and back in to see moderator features.
+
+---
+
+## 👤 Username System
+
+- **Format**: `AdjectiveNoun####` (e.g., `BraveEagle7392`)
+- **Auto-generated** on signup
+- **Regenerate anytime** in Settings
+- **Stored in Firestore** at `users/{uid}/username`
+
+---
+
+## 📝 License
+
+MIT License
