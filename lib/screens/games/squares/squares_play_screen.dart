@@ -65,6 +65,34 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
   void _rollDice() async {
     if (_isRolling) return;
     
+    // In lock-out mode, find available (non-completed) squares
+    List<Map<String, int>>? availableSquares;
+    if (_game.lockOutMode) {
+      availableSquares = [];
+      for (int x = 1; x <= _game.xDieSides; x++) {
+        for (int y = 1; y <= _game.yDieSides; y++) {
+          // Check if this x,y position is completed (all layers if 3D)
+          bool isCompleted = false;
+          if (_is3DMode && _game.zDieSides != null) {
+            isCompleted = List.generate(_game.zDieSides!, (i) => i + 1)
+                .every((z) => _game.isSquareCompleted(x, y, z));
+          } else {
+            isCompleted = _game.isSquareCompleted(x, y);
+          }
+          
+          if (!isCompleted) {
+            availableSquares.add({'x': x, 'y': y});
+          }
+        }
+      }
+      
+      // If no available squares, don't roll
+      if (availableSquares.isEmpty) {
+        setState(() => _isRolling = false);
+        return;
+      }
+    }
+    
     setState(() => _isRolling = true);
     _diceAnimationController.reset();
     _diceAnimationController.forward();
@@ -74,8 +102,16 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
       await Future.delayed(const Duration(milliseconds: 50));
       if (mounted) {
         setState(() {
-          _rolledX = _random.nextInt(_game.xDieSides) + 1;
-          _rolledY = _random.nextInt(_game.yDieSides) + 1;
+          if (_game.lockOutMode && availableSquares != null && availableSquares.isNotEmpty) {
+            // Pick from available squares only
+            final square = availableSquares[_random.nextInt(availableSquares.length)];
+            _rolledX = square['x']!;
+            _rolledY = square['y']!;
+          } else {
+            // Free play - any square
+            _rolledX = _random.nextInt(_game.xDieSides) + 1;
+            _rolledY = _random.nextInt(_game.yDieSides) + 1;
+          }
           if (_is3DMode) {
             _rolledZ = _random.nextInt(_game.zDieSides!) + 1;
           }
@@ -85,9 +121,8 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     
     setState(() => _isRolling = false);
     
-    // Show popup if square has content
-    // Content is always at x,y (layers are modifiers)
-    if (_rolledX != null && _rolledY != null && _game.isSquareFilled(_rolledX!, _rolledY!)) {
+    // Always show popup when a square is rolled
+    if (_rolledX != null && _rolledY != null) {
       _showSquarePopup();
     }
   }
@@ -95,20 +130,30 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
   void _showSquarePopup() {
     // Get base content (always x,y)
     final baseContent = _game.getSquareContent(_rolledX!, _rolledY!);
-    if (baseContent == null) return;
+    final hasContent = baseContent != null;
     
     // In 3D mode, combine with layer label
-    String displayContent = baseContent;
+    String displayContent = baseContent ?? '';
     String? layerLabel;
     if (_is3DMode && _rolledZ != null) {
       layerLabel = _game.getLayerLabel(_rolledZ!);
       if (layerLabel != null) {
-        displayContent = '$baseContent $layerLabel';
+        if (hasContent) {
+          displayContent = '$baseContent $layerLabel';
+        } else {
+          displayContent = layerLabel;
+        }
       }
     }
     
-    // Check if this specific outcome (x,y,z) is completed
-    final isCompleted = _game.isSquareCompleted(_rolledX!, _rolledY!, _rolledZ);
+    // Check if this x,y position is completed (all layers)
+    bool isCompleted = false;
+    if (_is3DMode && _game.zDieSides != null) {
+      isCompleted = List.generate(_game.zDieSides!, (i) => i + 1)
+          .every((z) => _game.isSquareCompleted(_rolledX!, _rolledY!, z));
+    } else {
+      isCompleted = _game.isSquareCompleted(_rolledX!, _rolledY!);
+    }
     
     showDialog(
       context: context,
@@ -122,10 +167,22 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              displayContent,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            if (!hasContent)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Rule not set',
+                  style: TextStyle(
+                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            if (hasContent || (_is3DMode && layerLabel != null))
+              Text(
+                displayContent,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
             if (isCompleted)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
