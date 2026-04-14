@@ -24,8 +24,6 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
   bool _isRolling = false;
   late AnimationController _diceAnimationController;
   final _random = Random();
-  
-  int _currentLayer = 1; // For 3D mode viewing
 
   @override
   void initState() {
@@ -49,17 +47,19 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     if (z != null) return '$x,$y,$z';
     return '$x,$y';
   }
-  
-  String? get _currentCoordinateKey {
-    if (_rolledX == null || _rolledY == null) return null;
-    if (_is3DMode && _rolledZ == null) return null;
-    return _makeKey(_rolledX!, _rolledY!, _rolledZ);
-  }
 
   bool get _canRollCurrentSquare {
-    if (_currentCoordinateKey == null) return true; // No roll yet
+    if (_rolledX == null || _rolledY == null) return true; // No roll yet
     if (!_game.lockOutMode) return true; // Free play mode
-    return !_game.isSquareCompleted(_rolledX!, _rolledY!, _rolledZ); // Lock-out mode
+    
+    // In lock-out mode, check if this x,y position is completed (all layers)
+    if (_is3DMode && _game.zDieSides != null) {
+      // Check if all z-layers for this x,y are completed
+      return !List.generate(_game.zDieSides!, (i) => i + 1)
+          .every((z) => _game.isSquareCompleted(_rolledX!, _rolledY!, z));
+    } else {
+      return !_game.isSquareCompleted(_rolledX!, _rolledY!);
+    }
   }
 
   void _rollDice() async {
@@ -87,7 +87,7 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     
     // Show popup if square has content
     // Content is always at x,y (layers are modifiers)
-    if (_currentCoordinateKey != null && _game.isSquareFilled(_rolledX!, _rolledY!)) {
+    if (_rolledX != null && _rolledY != null && _game.isSquareFilled(_rolledX!, _rolledY!)) {
       _showSquarePopup();
     }
   }
@@ -254,10 +254,6 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
             const SizedBox(height: 24),
             _buildDiceDisplay(),
             const SizedBox(height: 24),
-            if (_is3DMode) ...[
-              _buildLayerSelector(),
-              const SizedBox(height: 16),
-            ],
             _buildGrid(),
             const SizedBox(height: 24),
             _buildRollButton(),
@@ -329,7 +325,7 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
                 if (_is3DMode) _buildDie('Z', _rolledZ, _game.zDieSides!),
               ],
             ),
-            if (_currentCoordinateKey != null && _game.lockOutMode && !_canRollCurrentSquare)
+            if (_rolledX != null && _rolledY != null && _game.lockOutMode && !_canRollCurrentSquare)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Row(
@@ -397,39 +393,6 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     );
   }
 
-  Widget _buildLayerSelector() {
-    return Card(
-      color: DarkAcademiaColors.navyBlue.withValues(alpha: 0.3),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Text(
-              'Viewing Layer: ',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            Expanded(
-              child: DropdownButton<int>(
-                value: _currentLayer,
-                isExpanded: true,
-                items: List.generate(_game.zDieSides!, (index) {
-                  final layer = index + 1;
-                  return DropdownMenuItem(
-                    value: layer,
-                    child: Text('$layer: ${_game.layerLabels?[layer] ?? "Layer $layer"}'),
-                  );
-                }),
-                onChanged: (value) {
-                  setState(() => _currentLayer = value!);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildGrid() {
     return Card(
       child: Padding(
@@ -452,32 +415,31 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
                 itemBuilder: (context, index) {
               final x = (index % _game.xDieSides) + 1;
               final y = (index ~/ _game.xDieSides) + 1;
-              final z = _is3DMode ? _currentLayer : null;
               
               // Content is always at x,y (layers are modifiers)
               final isFilled = _game.isSquareFilled(x, y);
-              // Completion is tracked per x,y,z outcome
-              final isCompleted = _game.isSquareCompleted(x, y, z);
-              final isCurrentRoll = (_rolledX == x && _rolledY == y && (_rolledZ == z || !_is3DMode));
+              // Check if ALL layers are completed for this x,y
+              bool isCompleted = false;
+              if (_is3DMode && _game.zDieSides != null) {
+                // Check if all z-layers for this x,y are completed
+                isCompleted = List.generate(_game.zDieSides!, (i) => i + 1)
+                    .every((z) => _game.isSquareCompleted(x, y, z));
+              } else {
+                isCompleted = _game.isSquareCompleted(x, y);
+              }
+              // Flash animation on rolled x,y position (regardless of z)
+              final isCurrentRoll = (_rolledX == x && _rolledY == y);
               
               return GestureDetector(
                 onTap: isFilled ? () {
-                  // Get base content and combine with layer label
+                  // Get base content (no layer modifier when tapping grid)
                   final baseContent = _game.getSquareContent(x, y);
                   if (baseContent != null) {
-                    String displayContent = baseContent;
-                    if (_is3DMode && z != null) {
-                      final layerLabel = _game.getLayerLabel(z);
-                      if (layerLabel != null) {
-                        displayContent = '$baseContent $layerLabel';
-                      }
-                    }
-                    
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: Text(_is3DMode ? 'Square ($x, $y, $z)' : 'Square ($x, $y)'),
-                        content: Text(displayContent),
+                        title: Text('Square ($x, $y)'),
+                        content: Text(baseContent),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
