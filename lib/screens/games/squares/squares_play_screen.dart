@@ -78,7 +78,6 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
           _rolledY = _random.nextInt(_game.yDieSides) + 1;
           if (_is3DMode) {
             _rolledZ = _random.nextInt(_game.zDieSides!) + 1;
-            _currentLayer = _rolledZ!; // Auto-switch to rolled layer
           }
         });
       }
@@ -87,15 +86,28 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     setState(() => _isRolling = false);
     
     // Show popup if square has content
-    if (_currentCoordinateKey != null && _game.isSquareFilled(_rolledX!, _rolledY!, _rolledZ)) {
+    // Content is always at x,y (layers are modifiers)
+    if (_currentCoordinateKey != null && _game.isSquareFilled(_rolledX!, _rolledY!)) {
       _showSquarePopup();
     }
   }
 
   void _showSquarePopup() {
-    final content = _game.getSquareContent(_rolledX!, _rolledY!, _rolledZ);
-    if (content == null) return;
+    // Get base content (always x,y)
+    final baseContent = _game.getSquareContent(_rolledX!, _rolledY!);
+    if (baseContent == null) return;
     
+    // In 3D mode, combine with layer label
+    String displayContent = baseContent;
+    String? layerLabel;
+    if (_is3DMode && _rolledZ != null) {
+      layerLabel = _game.getLayerLabel(_rolledZ!);
+      if (layerLabel != null) {
+        displayContent = '$baseContent $layerLabel';
+      }
+    }
+    
+    // Check if this specific outcome (x,y,z) is completed
     final isCompleted = _game.isSquareCompleted(_rolledX!, _rolledY!, _rolledZ);
     
     showDialog(
@@ -110,18 +122,8 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_is3DMode)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  _game.layerLabels?[_rolledZ!] ?? 'Layer $_rolledZ',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: DarkAcademiaColors.antiqueBrass,
-                  ),
-                ),
-              ),
             Text(
-              content,
+              displayContent,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             if (isCompleted)
@@ -421,37 +423,50 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: AspectRatio(
-          aspectRatio: _game.xDieSides / _game.yDieSides,
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _game.xDieSides,
-              childAspectRatio: 1,
-              crossAxisSpacing: 2,
-              mainAxisSpacing: 2,
-            ),
-            itemCount: _game.xDieSides * _game.yDieSides,
-            itemBuilder: (context, index) {
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300, maxHeight: 300),
+            child: AspectRatio(
+              aspectRatio: _game.xDieSides / _game.yDieSides,
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _game.xDieSides,
+                  childAspectRatio: 1,
+                  crossAxisSpacing: 2,
+                  mainAxisSpacing: 2,
+                ),
+                itemCount: _game.xDieSides * _game.yDieSides,
+                itemBuilder: (context, index) {
               final x = (index % _game.xDieSides) + 1;
               final y = (index ~/ _game.xDieSides) + 1;
               final z = _is3DMode ? _currentLayer : null;
               
-              final isFilled = _game.isSquareFilled(x, y, z);
+              // Content is always at x,y (layers are modifiers)
+              final isFilled = _game.isSquareFilled(x, y);
+              // Completion is tracked per x,y,z outcome
               final isCompleted = _game.isSquareCompleted(x, y, z);
               final isCurrentRoll = (_rolledX == x && _rolledY == y && (_rolledZ == z || !_is3DMode));
               
               return GestureDetector(
                 onTap: isFilled ? () {
-                  // Show square content when tapped
-                  final content = _game.getSquareContent(x, y, z);
-                  if (content != null) {
+                  // Get base content and combine with layer label
+                  final baseContent = _game.getSquareContent(x, y);
+                  if (baseContent != null) {
+                    String displayContent = baseContent;
+                    if (_is3DMode && z != null) {
+                      final layerLabel = _game.getLayerLabel(z);
+                      if (layerLabel != null) {
+                        displayContent = '$baseContent $layerLabel';
+                      }
+                    }
+                    
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
                         title: Text(_is3DMode ? 'Square ($x, $y, $z)' : 'Square ($x, $y)'),
-                        content: Text(content),
+                        content: Text(displayContent),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
@@ -500,6 +515,8 @@ class _SquaresPlayScreenState extends State<SquaresPlayScreen>
                 ),
               );
             },
+          ),
+        ),
           ),
         ),
       ),

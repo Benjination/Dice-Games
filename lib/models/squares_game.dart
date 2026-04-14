@@ -13,14 +13,17 @@ class SquaresGame {
   final int yDieSides;
   final int? zDieSides; // Optional - enables 3D layer mode
   
-  // Grid content - key format: "x,y" or "x,y,z"
+  // Grid content - key format: "x,y" (always 2D, even in 3D mode)
+  // In 3D mode, layers are modifiers/intensity, not separate grids
   final Map<String, String> gridContent;
   
   // Layer labels (only used if zDieSides is set)
-  // Example: {1: "Easy", 2: "Medium", 3: "Hard"}
+  // These are modifiers/intensity for the grid content
+  // Example: {1: "Friend: Sarah", 2: "Friend: Mike", 3: "Friend: John"}
   final Map<int, String>? layerLabels;
   
-  // Completed squares tracking (key format matches gridContent)
+  // Completed squares tracking - key format: "x,y,z" (includes layer for 3D)
+  // In 2D mode: "x,y", in 3D mode: "x,y,z"
   final Set<String> completedSquares;
   
   // Play mode settings
@@ -53,8 +56,11 @@ class SquaresGame {
   /// Check if game is in 3D mode
   bool get is3DMode => zDieSides != null;
 
-  /// Get total number of squares in the grid
-  int get totalSquares {
+  /// Get total number of unique square positions (always 2D)
+  int get totalSquares => xDieSides * yDieSides;
+  
+  /// Get total number of possible outcomes (includes layers in 3D)
+  int get totalOutcomes {
     if (is3DMode) {
       return xDieSides * yDieSides * zDieSides!;
     }
@@ -67,25 +73,30 @@ class SquaresGame {
   /// Get number of completed squares
   int get completedCount => completedSquares.length;
 
-  /// Check if a specific square is filled
-  bool isSquareFilled(int x, int y, [int? z]) {
-    final key = _makeKey(x, y, z);
+  /// Check if a specific square is filled (always x,y - layers don't affect this)
+  bool isSquareFilled(int x, int y) {
+    final key = '$x,$y';
     return gridContent.containsKey(key);
   }
 
-  /// Check if a specific square is completed
+  /// Check if a specific outcome is completed (includes layer in 3D mode)
   bool isSquareCompleted(int x, int y, [int? z]) {
     final key = _makeKey(x, y, z);
     return completedSquares.contains(key);
   }
 
-  /// Get content for a specific square
-  String? getSquareContent(int x, int y, [int? z]) {
-    final key = _makeKey(x, y, z);
+  /// Get content for a specific square (always x,y - layers are modifiers)
+  String? getSquareContent(int x, int y) {
+    final key = '$x,$y';
     return gridContent[key];
   }
+  
+  /// Get layer label for a specific z value
+  String? getLayerLabel(int z) {
+    return layerLabels?[z];
+  }
 
-  /// Helper to create consistent keys
+  /// Helper to create consistent keys for completed tracking
   static String _makeKey(int x, int y, [int? z]) {
     if (z != null) {
       return '$x,$y,$z';

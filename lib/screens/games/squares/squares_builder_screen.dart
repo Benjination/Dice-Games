@@ -52,38 +52,32 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
 
   bool get _is3DMode => _zDieSides != null;
 
-  String _makeKey(int x, int y, [int? z]) {
-    if (z != null) return '$x,$y,$z';
+  String _makeKey(int x, int y) {
+    // Grid content is ALWAYS x,y only
+    // Layers are modifiers, not separate grids
     return '$x,$y';
   }
 
   void _toggleDimensionMode() {
     setState(() {
       if (_is3DMode) {
-        // Switch to 2D: remove all Z coordinates and layer labels
-        final new2DContent = <String, String>{};
-        _gridContent.forEach((key, value) {
-          final parts = key.split(',');
-          if (parts.length == 3) {
-            // Only keep layer 1 content when collapsing
-            if (parts[2] == '1') {
-              new2DContent['${parts[0]},${parts[1]}'] = value;
-            }
-          }
-        });
-        _gridContent = new2DContent;
+        // Switch to 2D: just remove Z-axis and layer labels
+        // Grid content stays the same (always x,y keys)
         _zDieSides = null;
-       _layerLabels = {};
+        _layerLabels = {};
         _currentLayer = 1;
       } else {
-        // Switch to 3D: convert existing 2D grid to layer 1
-        final new3DContent = <String, String>{};
-        _gridContent.forEach((key, value) {
-          new3DContent['$key,1'] = value;
-        });
-        _gridContent = new3DContent;
+        // Switch to 3D: add Z-axis and initialize layer labels
+        // Grid content stays the same (always x,y keys)
         _zDieSides = 6;
-        _layerLabels = {1: 'Layer 1', 2: 'Layer 2', 3: 'Layer 3', 4: 'Layer 4', 5: 'Layer 5', 6: 'Layer 6'};
+        _layerLabels = {
+          1: 'Layer 1', 
+          2: 'Layer 2', 
+          3: 'Layer 3', 
+          4: 'Layer 4', 
+          5: 'Layer 5', 
+          6: 'Layer 6'
+        };
       }
     });
   }
@@ -123,19 +117,34 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
     });
   }
 
-  void _editSquare(int x, int y, [int? z]) {
-    final key = _makeKey(x, y, z);
+  void _editSquare(int x, int y) {
+    // Grid content is ALWAYS x,y, even in 3D mode
+    // Layers are modifiers/intensity, not separate content
+    final key = '$x,$y';
     final hasContent = _gridContent.containsKey(key);
     final controller = TextEditingController(text: _gridContent[key] ?? '');
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_is3DMode ? 'Square ($x, $y, $z)' : 'Square ($x, $y)'),
+        title: Text(_is3DMode 
+          ? 'Square ($x, $y) - All Layers' 
+          : 'Square ($x, $y)'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_is3DMode)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'This content applies to all layers. Layer labels add modifiers.',
+                  style: TextStyle(
+                    color: DarkAcademiaColors.antiqueBrass.withValues(alpha: 0.7),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             if (!hasContent)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -507,11 +516,11 @@ class _SquaresBuilderScreenState extends State<SquaresBuilderScreen> {
             itemBuilder: (context, index) {
           final x = (index % _xDieSides) + 1;
           final y = (index ~/ _xDieSides) + 1;
-          final key = _makeKey(x, y, _is3DMode ? _currentLayer : null);
+          final key = _makeKey(x, y);
           final isFilled = _gridContent.containsKey(key);
           
           return GestureDetector(
-            onTap: () => _editSquare(x, y, _is3DMode ? _currentLayer : null),
+            onTap: () => _editSquare(x, y),
             child: Container(
               decoration: BoxDecoration(
                 color: isFilled
