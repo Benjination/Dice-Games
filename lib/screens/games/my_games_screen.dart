@@ -266,15 +266,6 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
     );
   }
 
-  void _editGame(SavedGame game) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DicePoolConfigScreen(existingGame: game),
-      ),
-    );
-  }
-
   Future<void> _shareGame(SavedGame game) async {
     if (game.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -666,8 +657,6 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
               _deleteGame(game);
             } else if (value == 'share') {
               _shareGame(game);
-            } else if (value == 'edit') {
-              _editGame(game);
             }
           },
           itemBuilder: (context) => [
@@ -676,10 +665,6 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
                 value: 'share',
                 child: Text('Share with Friend'),
               ),
-            const PopupMenuItem(
-              value: 'edit',
-              child: Text('Edit'),
-            ),
             const PopupMenuItem(
               value: 'delete',
               child: Text('Delete'),
