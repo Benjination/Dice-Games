@@ -47,11 +47,26 @@ service cloud.firestore {
     
     // User's private games
     match /users/{userId}/games/{gameId} {
-      // Users can read their own games
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Authenticated users can read any game (needed for conflict checking when sharing)
+      allow read: if request.auth != null;
       
       // Users can write to their own games
       allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Any authenticated user can create a shared game for someone else
+      // (by setting sharedBy to their own UID)
+      allow create: if request.auth != null && 
+                       request.resource.data.sharedBy == request.auth.uid;
+    }
+    
+    // User's shared Squares games
+    match /users/{userId}/shared_squares/{gameId} {
+      // Users can read their own shared games
+      // AND authenticated users can read others' shared games (for conflict checking)
+      allow read: if request.auth != null;
+      
+      // Users can update/delete their own shared games
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
       
       // Any authenticated user can create a shared game for someone else
       // (by setting sharedBy to their own UID)
@@ -134,9 +149,8 @@ service cloud.firestore {
       // Anyone can read public games
       allow read: if resource.data.isPublic == true;
       
-      // Users can read their own private games
-      allow read: if request.auth != null && 
-                     resource.data.creatorUid == request.auth.uid;
+      // Authenticated users can read any game (needed for conflict checking when sharing)
+      allow read: if request.auth != null;
       
       // Authenticated users can create games
       allow create: if request.auth != null &&
